@@ -48,7 +48,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// 📌 Register (Daftar Pengguna Baru)
+// Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, fullName, address, phoneNumber } = req.body;
@@ -66,7 +66,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 📌 Login (Autentikasi Pengguna)
+//Login (Autentikasi Pengguna)
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -95,7 +95,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 📌 Tambah Data IMEI
+// Tambah Data IMEI
 app.post('/api/imei', authenticateToken, async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -112,7 +112,7 @@ app.post('/api/imei', authenticateToken, async (req, res) => {
   }
 });
 
-// 📌 Ambil Semua Data IMEI
+// Ambil Semua Data IMEI
 app.get('/api/imei', authenticateToken, async (req, res) => {
   try {
     const imeiList = await ImeiData.find();
@@ -122,7 +122,7 @@ app.get('/api/imei', authenticateToken, async (req, res) => {
   }
 });
 
-// 📌 Tambah Data Bypass
+// Tambah Data Bypass
 app.post('/api/bypass', authenticateToken, async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -135,7 +135,7 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
   }
 });
 
-// 📌 Ambil Semua Data Bypass
+// Ambil Semua Data Bypass
 app.get('/api/bypass', authenticateToken, async (req, res) => {
   try {
     const bypassList = await BypassData.find().select('-__v');
