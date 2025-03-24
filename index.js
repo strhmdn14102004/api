@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // Koneksi MongoDB
-mongoose.connect('mongodb+srv://satria:strhmdn141004@cluster0.mongodb.net/sasat?retryWrites=true&w=majority')
+mongoose.connect('mongodb+srv://satria:strhmdn141004@cluster.ta6xb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster')
   .then(() => console.log('✅ MongoDB Connected'))
   .catch((err) => console.error('❌ MongoDB Error:', err));
 
