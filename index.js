@@ -19,8 +19,11 @@ mongoose.connect('mongodb+srv://satria:strhmdn141004@cluster.ta6xb.mongodb.net/?
 
 // Schema & Model
 const User = mongoose.model('User', new mongoose.Schema({
-  username: { type: String, unique: true },
-  password: String,
+  username: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  fullName: { type: String, required: true },
+  address: { type: String, required: true },
+  phoneNumber: { type: String, required: true }
 }));
 
 const ImeiData = mongoose.model('ImeiData', new mongoose.Schema({
@@ -48,11 +51,13 @@ const authenticateToken = (req, res, next) => {
 // 📌 Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ message: 'Username dan password wajib diisi' });
+    const { username, password, fullName, address, phoneNumber } = req.body;
+    if (!username || !password || !fullName || !address || !phoneNumber) {
+      return res.status(400).json({ message: 'Semua field wajib diisi' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword });
+    const newUser = new User({ username, password: hashedPassword, fullName, address, phoneNumber });
     await newUser.save();
 
     res.status(201).json({ message: 'User berhasil didaftarkan' });
@@ -75,30 +80,37 @@ app.post('/api/login', async (req, res) => {
 
     const token = jwt.sign({ id: user._id, username: user.username }, secretKey, { expiresIn: '1h' });
 
-    res.status(200).json({ message: 'Login berhasil', token });
+    res.status(200).json({ 
+      message: 'Login berhasil', 
+      token,
+      user: {
+        username: user.username,
+        fullName: user.fullName,
+        address: user.address,
+        phoneNumber: user.phoneNumber
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error saat login', error: err.message });
   }
 });
 
 // 📌 Tambah Data IMEI
-// Tambah Data IMEI
 app.post('/api/imei', authenticateToken, async (req, res) => {
-    try {
-      const { name, price } = req.body;
-      if (!name || !price) {
-        return res.status(400).json({ message: 'Nama dan harga wajib diisi' });
-      }
-  
-      const newImeiData = new ImeiData({ name, price });
-      await newImeiData.save();
-  
-      res.status(201).json({ message: 'Data IMEI berhasil ditambahkan', data: newImeiData });
-    } catch (err) {
-      res.status(500).json({ message: 'Error saat menambahkan data IMEI', error: err.message });
+  try {
+    const { name, price } = req.body;
+    if (!name || !price) {
+      return res.status(400).json({ message: 'Nama dan harga wajib diisi' });
     }
-  });
-  
+
+    const newImeiData = new ImeiData({ name, price });
+    await newImeiData.save();
+
+    res.status(201).json({ message: 'Data IMEI berhasil ditambahkan', data: newImeiData });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat menambahkan data IMEI', error: err.message });
+  }
+});
 
 // 📌 Ambil Semua Data IMEI
 app.get('/api/imei', authenticateToken, async (req, res) => {
@@ -126,8 +138,8 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
 // 📌 Ambil Semua Data Bypass
 app.get('/api/bypass', authenticateToken, async (req, res) => {
   try {
-    const bypassList = await BypassData.find();
-    res.status(200).json({ data: bypassList });
+    const bypassList = await BypassData.find().select('-__v');
+    res.status(200).json(bypassList);
   } catch (err) {
     res.status(500).json({ message: 'Error saat mengambil data Bypass', error: err.message });
   }
