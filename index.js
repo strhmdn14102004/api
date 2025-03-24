@@ -145,7 +145,6 @@ app.get('/api/bypass', authenticateToken, async (req, res) => {
   }
 });
 
-// Start Server
 app.listen(port, () => {
-  console.log(`✅ API berjalan di http://localhost:${port}`);
+  console.log(`berhasil jalan servernya ${port}`);
 });
