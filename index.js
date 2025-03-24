@@ -10,8 +10,8 @@ app.use(express.json());
 
 // Dummy data
 let services = [
-  { id: 1, name: 'Unblock IMEI', price: 50000 },
-  { id: 2, name: 'Flash Firmware', price: 75000 },
+  { id: 1, name: 'Unblock IMEI 3 Bulan', price: 200000 },
+  { id: 2, name: 'Flash Firmware', price: 50000 },
 ];
 
 // Route: Get All Services
