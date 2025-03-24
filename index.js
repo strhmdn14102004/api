@@ -6,7 +6,7 @@ const cors = require('cors');
 
 const app = express();
 const port = 3000;
-const secretKey = '14102004'; // Ganti dengan kunci rahasia yang aman
+const secretKey = '14102004';
 
 // Middleware
 app.use(cors());
@@ -21,6 +21,16 @@ mongoose.connect('mongodb+srv://satria:strhmdn141004@cluster.ta6xb.mongodb.net/?
 const User = mongoose.model('User', new mongoose.Schema({
   username: { type: String, unique: true },
   password: String,
+}));
+
+const ImeiData = mongoose.model('ImeiData', new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+}));
+
+const BypassData = mongoose.model('BypassData', new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
 }));
 
 // Middleware: Verifikasi JWT
@@ -41,7 +51,6 @@ app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Username dan password wajib diisi' });
 
-    // Hash password sebelum disimpan
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username, password: hashedPassword });
     await newUser.save();
@@ -58,15 +67,12 @@ app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Username dan password wajib diisi' });
 
-    // Cari pengguna di database
     const user = await User.findOne({ username });
     if (!user) return res.status(401).json({ message: 'User tidak ditemukan' });
 
-    // Verifikasi password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Password salah' });
 
-    // Buat token JWT
     const token = jwt.sign({ id: user._id, username: user.username }, secretKey, { expiresIn: '1h' });
 
     res.status(200).json({ message: 'Login berhasil', token });
@@ -75,9 +81,50 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 📌 Route Terproteksi (Hanya Bisa Diakses Setelah Login)
-app.get('/api/protected', authenticateToken, (req, res) => {
-  res.status(200).json({ message: 'Akses berhasil', user: req.user });
+// 📌 Tambah Data IMEI
+app.post('/api/imei', authenticateToken, async (req, res) => {
+  try {
+    const { name, price } = req.body;
+    const newImei = new ImeiData({ name, price });
+    await newImei.save();
+
+    res.status(201).json({ message: 'Data IMEI berhasil ditambahkan', data: newImei });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat menambahkan data IMEI', error: err.message });
+  }
+});
+
+// 📌 Ambil Semua Data IMEI
+app.get('/api/imei', authenticateToken, async (req, res) => {
+  try {
+    const imeiList = await ImeiData.find();
+    res.status(200).json({ data: imeiList });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat mengambil data IMEI', error: err.message });
+  }
+});
+
+// 📌 Tambah Data Bypass
+app.post('/api/bypass', authenticateToken, async (req, res) => {
+  try {
+    const { name, price } = req.body;
+    const newBypass = new BypassData({ name, price });
+    await newBypass.save();
+
+    res.status(201).json({ message: 'Data Bypass berhasil ditambahkan', data: newBypass });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat menambahkan data Bypass', error: err.message });
+  }
+});
+
+// 📌 Ambil Semua Data Bypass
+app.get('/api/bypass', authenticateToken, async (req, res) => {
+  try {
+    const bypassList = await BypassData.find();
+    res.status(200).json({ data: bypassList });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat mengambil data Bypass', error: err.message });
+  }
 });
 
 // Start Server
