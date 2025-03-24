@@ -3,7 +3,7 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 
 // Inisialisasi Firebase
-const serviceAccount = require('./serviceAccountKey.json');
+const serviceAccount = require('./test.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
