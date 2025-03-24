@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const admin = require('firebase-admin');
+const { admin, db } = require('./firebase'); // ✅ Ambil dari firebase.js
 
 // Inisialisasi Firebase
 const serviceAccount = require('././secret.json');
