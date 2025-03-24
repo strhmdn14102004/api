@@ -82,17 +82,23 @@ app.post('/api/login', async (req, res) => {
 });
 
 // 📌 Tambah Data IMEI
+// Tambah Data IMEI
 app.post('/api/imei', authenticateToken, async (req, res) => {
-  try {
-    const { name, price } = req.body;
-    const newImei = new ImeiData({ name, price });
-    await newImei.save();
-
-    res.status(201).json({ message: 'Data IMEI berhasil ditambahkan', data: newImei });
-  } catch (err) {
-    res.status(500).json({ message: 'Error saat menambahkan data IMEI', error: err.message });
-  }
-});
+    try {
+      const { name, price } = req.body;
+      if (!name || !price) {
+        return res.status(400).json({ message: 'Nama dan harga wajib diisi' });
+      }
+  
+      const newImeiData = new ImeiData({ name, price });
+      await newImeiData.save();
+  
+      res.status(201).json({ message: 'Data IMEI berhasil ditambahkan', data: newImeiData });
+    } catch (err) {
+      res.status(500).json({ message: 'Error saat menambahkan data IMEI', error: err.message });
+    }
+  });
+  
 
 // 📌 Ambil Semua Data IMEI
 app.get('/api/imei', authenticateToken, async (req, res) => {
