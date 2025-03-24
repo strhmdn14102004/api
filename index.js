@@ -1,81 +1,86 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
 
 const app = express();
 const port = 3000;
+const secretKey = '14102004'; // Ganti dengan kunci rahasia yang aman
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Koneksi ke MongoDB
-mongoose.connect('mongodb+srv://sasat:strhmdn141004@cluster0.mongodb.net/sasat?retryWrites=true&w=majority')
+// Koneksi MongoDB
+mongoose.connect('mongodb+srv://satria:strhmdn141004@cluster0.mongodb.net/sasat?retryWrites=true&w=majority')
   .then(() => console.log('✅ MongoDB Connected'))
-  .catch((err) => console.error('❌ MongoDB Connection Error:', err));
+  .catch((err) => console.error('❌ MongoDB Error:', err));
 
 // Schema & Model
-const Service = mongoose.model('Service', new mongoose.Schema({
-  name: String,
-  price: Number,
+const User = mongoose.model('User', new mongoose.Schema({
+  username: { type: String, unique: true },
+  password: String,
 }));
 
-const Bypass = mongoose.model('Bypass', new mongoose.Schema({
-  name: String,
-  price: Number,
-}));
+// Middleware: Verifikasi JWT
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Akses ditolak, token tidak tersedia' });
 
-// Route: Get All Services
-app.get('/api/imei', async (req, res) => {
+  jwt.verify(token, secretKey, (err, user) => {
+    if (err) return res.status(403).json({ message: 'Token tidak valid' });
+    req.user = user;
+    next();
+  });
+};
+
+// 📌 Register (Daftar Pengguna Baru)
+app.post('/api/register', async (req, res) => {
   try {
-    const services = await Service.find();
-    res.status(200).json(services);
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ message: 'Username dan password wajib diisi' });
+
+    // Hash password sebelum disimpan
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: 'User berhasil didaftarkan' });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching services', error: err });
+    res.status(500).json({ message: 'Error saat registrasi', error: err.message });
   }
 });
 
-// Route: Create New Service
-app.post('/api/imei', async (req, res) => {
+// 📌 Login (Autentikasi Pengguna)
+app.post('/api/login', async (req, res) => {
   try {
-    const { name, price } = req.body;
-    if (!name || !price) {
-      return res.status(400).json({ message: 'Name and price required' });
-    }
-    const newService = new Service({ name, price });
-    await newService.save();
-    res.status(201).json(newService);
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ message: 'Username dan password wajib diisi' });
+
+    // Cari pengguna di database
+    const user = await User.findOne({ username });
+    if (!user) return res.status(401).json({ message: 'User tidak ditemukan' });
+
+    // Verifikasi password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Password salah' });
+
+    // Buat token JWT
+    const token = jwt.sign({ id: user._id, username: user.username }, secretKey, { expiresIn: '1h' });
+
+    res.status(200).json({ message: 'Login berhasil', token });
   } catch (err) {
-    res.status(500).json({ message: 'Error creating service', error: err });
+    res.status(500).json({ message: 'Error saat login', error: err.message });
   }
 });
 
-// Route: Get All Bypass Data
-app.get('/api/bypass', async (req, res) => {
-  try {
-    const bypass = await Bypass.find();
-    res.status(200).json(bypass);
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching bypass data', error: err });
-  }
-});
-
-// Route: Create New Bypass Entry
-app.post('/api/bypass', async (req, res) => {
-  try {
-    const { name, price } = req.body;
-    if (!name || !price) {
-      return res.status(400).json({ message: 'Name and price required' });
-    }
-    const newBypass = new Bypass({ name, price });
-    await newBypass.save();
-    res.status(201).json(newBypass);
-  } catch (err) {
-    res.status(500).json({ message: 'Error creating bypass entry', error: err });
-  }
+// 📌 Route Terproteksi (Hanya Bisa Diakses Setelah Login)
+app.get('/api/protected', authenticateToken, (req, res) => {
+  res.status(200).json({ message: 'Akses berhasil', user: req.user });
 });
 
 // Start Server
 app.listen(port, () => {
-  console.log(`✅ API sukses berjalan di http://localhost:${port}`);
+  console.log(`✅ API berjalan di http://localhost:${port}`);
 });
