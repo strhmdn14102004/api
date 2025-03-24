@@ -8,7 +8,7 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 const db = admin.firestore();
-
+console.log("Current Server Time: ", new Date().toISOString());
 const app = express();
 const port = 3000;
 
