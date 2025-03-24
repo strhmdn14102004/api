@@ -1,12 +1,8 @@
-const admin = require('firebase-admin');
-const serviceAccount = require('./secret.json');
+var admin = require("firebase-admin");
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
+var serviceAccount = require("././secret.json");
 
-const db = admin.firestore();
-
-module.exports = { admin, db };
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
