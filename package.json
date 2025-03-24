@@ -8,9 +8,18 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "��#\u0000 \u0000a\u0000p\u0000i\u0000\r\u0000 \u0000",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.21.2"
-  }
+    "express": "^4.21.2",
+    "firebase-admin": "^13.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/strhmdn14102004/api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/strhmdn14102004/api/issues"
+  },
+  "homepage": "https://github.com/strhmdn14102004/api#readme"
 }
