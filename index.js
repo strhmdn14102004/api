@@ -48,13 +48,11 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Register (Daftar Pengguna Baru)
+// 📌 Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, fullName, address, phoneNumber } = req.body;
-    if (!username || !password || !fullName || !address || !phoneNumber) {
-      return res.status(400).json({ message: 'Semua field wajib diisi' });
-    }
+    if (!username || !password || !fullName || !address || !phoneNumber) return res.status(400).json({ message: 'Semua field wajib diisi' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username, password: hashedPassword, fullName, address, phoneNumber });
@@ -66,7 +64,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-//Login (Autentikasi Pengguna)
+// 📌 Login (Autentikasi Pengguna)
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -80,28 +78,38 @@ app.post('/api/login', async (req, res) => {
 
     const token = jwt.sign({ id: user._id, username: user.username }, secretKey, { expiresIn: '1h' });
 
-    res.status(200).json({ 
-      message: 'Login berhasil', 
-      token,
-      user: {
-        username: user.username,
-        fullName: user.fullName,
-        address: user.address,
-        phoneNumber: user.phoneNumber
-      }
-    });
+    res.status(200).json({ message: 'Login berhasil', token });
   } catch (err) {
     res.status(500).json({ message: 'Error saat login', error: err.message });
   }
 });
 
-// Tambah Data IMEI
+// 📌 Ambil Semua User
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.status(200).json({ data: users });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat mengambil data user', error: err.message });
+  }
+});
+
+// 📌 Ambil Detail User Berdasarkan ID
+app.get('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat mengambil data user', error: err.message });
+  }
+});
+
+// 📌 Tambah Data IMEI
 app.post('/api/imei', authenticateToken, async (req, res) => {
   try {
     const { name, price } = req.body;
-    if (!name || !price) {
-      return res.status(400).json({ message: 'Nama dan harga wajib diisi' });
-    }
+    if (!name || !price) return res.status(400).json({ message: 'Nama dan harga wajib diisi' });
 
     const newImeiData = new ImeiData({ name, price });
     await newImeiData.save();
@@ -112,7 +120,7 @@ app.post('/api/imei', authenticateToken, async (req, res) => {
   }
 });
 
-// Ambil Semua Data IMEI
+// 📌 Ambil Semua Data IMEI
 app.get('/api/imei', authenticateToken, async (req, res) => {
   try {
     const imeiList = await ImeiData.find();
@@ -122,7 +130,7 @@ app.get('/api/imei', authenticateToken, async (req, res) => {
   }
 });
 
-// Tambah Data Bypass
+// 📌 Tambah Data Bypass
 app.post('/api/bypass', authenticateToken, async (req, res) => {
   try {
     const { name, price } = req.body;
@@ -135,7 +143,7 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
   }
 });
 
-// Ambil Semua Data Bypass
+// 📌 Ambil Semua Data Bypass
 app.get('/api/bypass', authenticateToken, async (req, res) => {
   try {
     const bypassList = await BypassData.find().select('-__v');
@@ -145,6 +153,7 @@ app.get('/api/bypass', authenticateToken, async (req, res) => {
   }
 });
 
+// Start Server
 app.listen(port, () => {
-  console.log(`berhasil jalan servernya ${port}`);
+  console.log(`✅ API berjalan di http://localhost:${port}`);
 });
