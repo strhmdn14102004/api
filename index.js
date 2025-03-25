@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const midtransClient = require('midtrans-client');
 
 const app = express();
 const port = 3000;
@@ -46,6 +47,67 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
 }));
+//transaksi midtrans
+app.post('/api/transactions', authenticateToken, async (req, res) => {
+  try {
+    const { itemType, itemId } = req.body;
+    if (!itemType || !itemId) return res.status(400).json({ message: 'Tipe item dan ID item wajib diisi' });
+
+    let item;
+    if (itemType === 'imei') {
+      item = await ImeiData.findById(itemId);
+    } else if (itemType === 'bypass') {
+      item = await BypassData.findById(itemId);
+    }
+
+    if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
+
+    const transaction = new Transaction({
+      userId: req.user.id,
+      itemType,
+      itemId,
+      itemName: item.name,
+      price: item.price,
+      status: 'pending'
+    });
+
+    await transaction.save();
+
+    let snap = new midtransClient.Snap({
+      isProduction: false,
+      serverKey: 'Mid-server-MS_dCKFova7mRVDoY3mDUeNy'
+    });
+
+    let parameter = {
+      transaction_details: {
+        order_id: transaction._id.toString(),
+        gross_amount: item.price
+      },
+      customer_details: {
+        first_name: req.user.fullName,
+        email: req.user.username + "@example.com"
+      }
+    };
+
+    snap.createTransaction(parameter)
+      .then(async (transactionData) => {
+        transaction.paymentUrl = transactionData.redirect_url;
+        await transaction.save();
+
+        res.status(201).json({ 
+          message: 'Transaksi berhasil dibuat',
+          paymentUrl: transaction.paymentUrl,
+          data: transaction
+        });
+      })
+      .catch((err) => {
+        console.error('❌ Midtrans Error:', err);
+        res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
+      });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
+  }
+});
 
 // Middleware: Verifikasi JWT
 const authenticateToken = (req, res, next) => {
@@ -76,35 +138,35 @@ app.post('/api/register', async (req, res) => {
 });
 
 //transkasi
-app.post('/api/transactions', authenticateToken, async (req, res) => {
-  try {
-    const { itemType, itemId } = req.body;
-    if (!itemType || !itemId) return res.status(400).json({ message: 'Tipe item dan ID item wajib diisi' });
+// app.post('/api/transactions', authenticateToken, async (req, res) => {
+//   try {
+//     const { itemType, itemId } = req.body;
+//     if (!itemType || !itemId) return res.status(400).json({ message: 'Tipe item dan ID item wajib diisi' });
 
-    let item;
-    if (itemType === 'imei') {
-      item = await ImeiData.findById(itemId);
-    } else if (itemType === 'bypass') {
-      item = await BypassData.findById(itemId);
-    }
+//     let item;
+//     if (itemType === 'imei') {
+//       item = await ImeiData.findById(itemId);
+//     } else if (itemType === 'bypass') {
+//       item = await BypassData.findById(itemId);
+//     }
 
-    if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
+//     if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
 
-    const transaction = new Transaction({
-      userId: req.user.id,
-      itemType,
-      itemId,
-      itemName: item.name,
-      price: item.price,
-      status: 'pending'
-    });
+//     const transaction = new Transaction({
+//       userId: req.user.id,
+//       itemType,
+//       itemId,
+//       itemName: item.name,
+//       price: item.price,
+//       status: 'pending'
+//     });
 
-    await transaction.save();
-    res.status(201).json({ message: 'Transaksi berhasil dibuat', data: transaction });
-  } catch (err) {
-    res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
-  }
-});
+//     await transaction.save();
+//     res.status(201).json({ message: 'Transaksi berhasil dibuat', data: transaction });
+//   } catch (err) {
+//     res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
+//   }
+// });
 
 //update status transaksi
 app.post('/api/transactions/update', async (req, res) => {
