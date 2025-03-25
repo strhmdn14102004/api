@@ -48,6 +48,7 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
   price: { type: Number, required: true },
 }));
 //transaksi midtrans
+// Transaksi Midtrans
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
