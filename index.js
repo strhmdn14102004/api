@@ -76,7 +76,17 @@ app.post('/api/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Password salah' });
 
-    const token = jwt.sign({ id: user._id, username: user.username }, secretKey, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        username: user.username, 
+        fullName: user.fullName,
+        email: user.username // Jika email digunakan sebagai username
+      }, 
+      secretKey, 
+      { expiresIn: '1h' }
+    );
+    
 
     res.status(200).json({ message: 'Login berhasil', token });
   } catch (err) {
