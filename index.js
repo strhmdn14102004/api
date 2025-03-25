@@ -67,8 +67,8 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Midtrans Config
-let snap = new midtransClient.Snap({
-  isProduction: false, 
+const snap = new midtransClient.Snap({
+  isProduction: false, // Ganti true jika ingin production
   serverKey: process.env.MIDTRANS_SERVER_KEY
 });
 
@@ -87,6 +87,11 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 
     if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
 
+    // Ambil data user dari database
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+
+    // Buat transaksi di database
     const transaction = new Transaction({
       userId: req.user.id,
       itemType,
@@ -95,21 +100,33 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
       price: item.price,
       status: 'pending'
     });
-
     await transaction.save();
 
+    // Parameter pembayaran Midtrans
     let parameter = {
       transaction_details: {
         order_id: transaction._id.toString(),
         gross_amount: item.price
       },
+      item_details: [
+        {
+          id: itemId,
+          name: item.name,
+          price: item.price,
+          quantity: 1
+        }
+      ],
       customer_details: {
-        first_name: req.user.fullName,
-        email: req.user.username + "@example.com"
+        first_name: user.fullName,
+        email: user.username, // Gunakan email asli dari user
+        phone: user.phoneNumber
       }
     };
 
+    // Kirim request ke Midtrans
     const transactionData = await snap.createTransaction(parameter);
+    
+    // Simpan payment URL ke database
     transaction.paymentUrl = transactionData.redirect_url;
     await transaction.save();
 
