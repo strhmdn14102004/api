@@ -60,7 +60,6 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-//transaksi midtrans
 // Transaksi Midtrans
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
@@ -76,6 +75,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 
     if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
 
+    // Simpan transaksi ke database (status pending)
     const transaction = new Transaction({
       userId: req.user.id,
       itemType,
@@ -87,10 +87,14 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 
     await transaction.save();
 
+    // Konfigurasi Midtrans Snap
     let snap = new midtransClient.Snap({
-      isProduction: false,
-      serverKey: 'Mid-server-MS_dCKFova7mRVDoY3mDUeNy'
+      isProduction: true, // Ganti dengan 'false' jika masih dalam mode sandbox
+      serverKey: process.env.MIDTRANS_SERVER_KEY || 'Mid-server-MS_dCKFova7mRVDoY3mDUeNy'
     });
+
+    // Pastikan server key dikirim dalam format Basic Auth
+    let authHeader = Buffer.from(`${process.env.MIDTRANS_SERVER_KEY || 'Mid-server-MS_dCKFova7mRVDoY3mDUeNy'}`).toString("base64");
 
     let parameter = {
       transaction_details: {
@@ -99,27 +103,30 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
       },
       customer_details: {
         first_name: req.user.fullName,
-        email: req.user.username + "@example.com"
+        email: req.user.username + "@example.com",
+        phone: req.user.phoneNumber
+      },
+      credit_card: {
+        secure: true
       }
     };
 
-    snap.createTransaction(parameter)
-      .then(async (transactionData) => {
-        transaction.paymentUrl = transactionData.redirect_url;
-        await transaction.save();
+    // Buat transaksi di Midtrans
+    const transactionData = await snap.createTransaction(parameter);
 
-        res.status(201).json({ 
-          message: 'Transaksi berhasil dibuat',
-          paymentUrl: transaction.paymentUrl,
-          data: transaction
-        });
-      })
-      .catch((err) => {
-        console.error('❌ Midtrans Error:', err);
-        res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
-      });
+    // Simpan URL pembayaran ke transaksi
+    transaction.paymentUrl = transactionData.redirect_url;
+    await transaction.save();
+
+    res.status(201).json({
+      message: 'Transaksi berhasil dibuat',
+      paymentUrl: transaction.paymentUrl,
+      data: transaction
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
+    console.error('❌ Midtrans Error:', err);
+    res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
   }
 });
 // 📌 Register (Daftar Pengguna Baru)
