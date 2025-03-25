@@ -47,6 +47,19 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
 }));
+
+
+// Middleware: Verifikasi JWT
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Akses ditolak, token tidak tersedia' });
+
+  jwt.verify(token, secretKey, (err, decoded) => {
+    if (err) return res.status(403).json({ message: 'Token tidak valid' });
+    req.user = decoded;
+    next();
+  });
+};
 //transaksi midtrans
 // Transaksi Midtrans
 app.post('/api/transactions', authenticateToken, async (req, res) => {
@@ -109,19 +122,6 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
   }
 });
-
-// Middleware: Verifikasi JWT
-const authenticateToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Akses ditolak, token tidak tersedia' });
-
-  jwt.verify(token, secretKey, (err, decoded) => {
-    if (err) return res.status(403).json({ message: 'Token tidak valid' });
-    req.user = decoded;
-    next();
-  });
-};
-
 // 📌 Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
