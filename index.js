@@ -142,6 +142,35 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
   }
 });
 
+app.post('/api/midtrans/webhook', async (req, res) => {
+  try {
+    const { order_id, transaction_status } = req.body;
+
+    // Cari transaksi berdasarkan order_id
+    const transaction = await Transaction.findById(order_id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    }
+
+    // Update status berdasarkan status dari Midtrans
+    if (transaction_status === 'settlement') {
+      transaction.status = 'sukses';
+    } else if (transaction_status === 'cancel' || transaction_status === 'expire' || transaction_status === 'failure') {
+      transaction.status = 'gagal';
+    } else {
+      transaction.status = 'pending'; // Jika belum selesai
+    }
+
+    await transaction.save();
+
+    res.status(200).json({ message: 'Status transaksi diperbarui', status: transaction.status });
+  } catch (err) {
+    console.error('❌ Webhook Error:', err);
+    res.status(500).json({ message: 'Error di webhook', error: err.message });
+  }
+});
+
+
 // 📌 Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
