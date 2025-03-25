@@ -41,9 +41,9 @@ const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Akses ditolak, token tidak tersedia' });
 
-  jwt.verify(token, secretKey, (err, user) => {
+  jwt.verify(token, secretKey, (err, decoded) => {
     if (err) return res.status(403).json({ message: 'Token tidak valid' });
-    req.user = user;
+    req.user = decoded;
     next();
   });
 };
@@ -64,7 +64,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 📌 Login (Autentikasi Pengguna)
+// 📌 Login (Autentikasi Pengguna & Kirim Data User)
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -76,42 +76,41 @@ app.post('/api/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Password salah' });
 
-    const token = jwt.sign(
-      { 
-        id: user._id, 
-        username: user.username, 
-        fullName: user.fullName,
-        email: user.username // Jika email digunakan sebagai username
-      }, 
-      secretKey, 
-      { expiresIn: '1h' }
-    );
-    
+    const token = jwt.sign({ id: user._id, username: user.username, fullName: user.fullName }, secretKey, { expiresIn: '1h' });
 
-    res.status(200).json({ message: 'Login berhasil', token });
+    res.status(200).json({
+      message: 'Login berhasil',
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        fullName: user.fullName,
+        address: user.address,
+        phoneNumber: user.phoneNumber
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error saat login', error: err.message });
   }
 });
 
-// 📌 Ambil Semua User
-app.get('/api/users', authenticateToken, async (req, res) => {
+// 📌 Ambil Data IMEI (Hanya Jika Login)
+app.get('/api/imei', authenticateToken, async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    res.status(200).json({ data: users });
+    const imeiList = await ImeiData.find();
+    res.status(200).json({ data: imeiList });
   } catch (err) {
-    res.status(500).json({ message: 'Error saat mengambil data user', error: err.message });
+    res.status(500).json({ message: 'Error saat mengambil data IMEI', error: err.message });
   }
 });
 
-// 📌 Ambil Detail User Berdasarkan ID
-app.get('/api/users/:id', authenticateToken, async (req, res) => {
+// 📌 Ambil Data Bypass (Hanya Jika Login)
+app.get('/api/bypass', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
-    res.status(200).json(user);
+    const bypassList = await BypassData.find().select('-__v');
+    res.status(200).json(bypassList);
   } catch (err) {
-    res.status(500).json({ message: 'Error saat mengambil data user', error: err.message });
+    res.status(500).json({ message: 'Error saat mengambil data Bypass', error: err.message });
   }
 });
 
@@ -130,16 +129,6 @@ app.post('/api/imei', authenticateToken, async (req, res) => {
   }
 });
 
-// 📌 Ambil Semua Data IMEI
-app.get('/api/imei', authenticateToken, async (req, res) => {
-  try {
-    const imeiList = await ImeiData.find();
-    res.status(200).json({ data: imeiList });
-  } catch (err) {
-    res.status(500).json({ message: 'Error saat mengambil data IMEI', error: err.message });
-  }
-});
-
 // 📌 Tambah Data Bypass
 app.post('/api/bypass', authenticateToken, async (req, res) => {
   try {
@@ -150,16 +139,6 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
     res.status(201).json({ message: 'Data Bypass berhasil ditambahkan', data: newBypass });
   } catch (err) {
     res.status(500).json({ message: 'Error saat menambahkan data Bypass', error: err.message });
-  }
-});
-
-// 📌 Ambil Semua Data Bypass
-app.get('/api/bypass', authenticateToken, async (req, res) => {
-  try {
-    const bypassList = await BypassData.find().select('-__v');
-    res.status(200).json(bypassList);
-  } catch (err) {
-    res.status(500).json({ message: 'Error saat mengambil data Bypass', error: err.message });
   }
 });
 
