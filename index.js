@@ -26,6 +26,17 @@ const User = mongoose.model('User', new mongoose.Schema({
   phoneNumber: { type: String, required: true }
 }));
 
+const Transaction = mongoose.model('Transaction', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  itemType: { type: String, enum: ['imei', 'bypass'], required: true }, 
+  itemId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  itemName: { type: String, required: true },
+  price: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'gagal', 'sukses'], default: 'pending' },
+  createdAt: { type: Date, default: Date.now }
+}));
+
+
 const ImeiData = mongoose.model('ImeiData', new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
@@ -61,6 +72,65 @@ app.post('/api/register', async (req, res) => {
     res.status(201).json({ message: 'User berhasil didaftarkan' });
   } catch (err) {
     res.status(500).json({ message: 'Error saat registrasi', error: err.message });
+  }
+});
+
+//transkasi
+app.post('/api/transactions', authenticateToken, async (req, res) => {
+  try {
+    const { itemType, itemId } = req.body;
+    if (!itemType || !itemId) return res.status(400).json({ message: 'Tipe item dan ID item wajib diisi' });
+
+    let item;
+    if (itemType === 'imei') {
+      item = await ImeiData.findById(itemId);
+    } else if (itemType === 'bypass') {
+      item = await BypassData.findById(itemId);
+    }
+
+    if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
+
+    const transaction = new Transaction({
+      userId: req.user.id,
+      itemType,
+      itemId,
+      itemName: item.name,
+      price: item.price,
+      status: 'pending'
+    });
+
+    await transaction.save();
+    res.status(201).json({ message: 'Transaksi berhasil dibuat', data: transaction });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
+  }
+});
+
+//update status transaksi
+app.post('/api/transactions/update', async (req, res) => {
+  try {
+    const { transactionId, status } = req.body;
+    if (!transactionId || !status) return res.status(400).json({ message: 'Transaction ID dan status wajib diisi' });
+
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    transaction.status = status;
+    await transaction.save();
+
+    res.status(200).json({ message: 'Status transaksi berhasil diperbarui', data: transaction });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat memperbarui transaksi', error: err.message });
+  }
+});
+
+//lihat transaksi
+app.get('/api/transactions', authenticateToken, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    res.status(200).json({ data: transactions });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat mengambil histori transaksi', error: err.message });
   }
 });
 
