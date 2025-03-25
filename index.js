@@ -146,8 +146,8 @@ app.post('/api/midtrans/webhook', async (req, res) => {
   try {
     const { order_id, transaction_status } = req.body;
 
-    // Cari transaksi berdasarkan order_id
-    const transaction = await Transaction.findById(order_id);
+    // Konversi order_id ke ObjectId
+    const transaction = await Transaction.findById(new mongoose.Types.ObjectId(order_id));
     if (!transaction) {
       return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
     }
@@ -169,6 +169,7 @@ app.post('/api/midtrans/webhook', async (req, res) => {
     res.status(500).json({ message: 'Error di webhook', error: err.message });
   }
 });
+
 
 
 // 📌 Register (Daftar Pengguna Baru)
