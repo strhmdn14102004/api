@@ -118,7 +118,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
       ],
       customer_details: {
         first_name: user.fullName,
-        email: user.username, // Gunakan email asli dari user
+        email: "testing@gmail.com", // Gunakan email asli dari user
         phone: user.phoneNumber
       }
     };
