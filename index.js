@@ -68,7 +68,7 @@ const authenticateToken = (req, res, next) => {
 
 // Midtrans Config
 const snap = new midtransClient.Snap({
-  isProduction: false, // Ganti true jika ingin production
+  isProduction: true, // Ganti true jika ingin production
   serverKey: process.env.MIDTRANS_SERVER_KEY
 });
 
