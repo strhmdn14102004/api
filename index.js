@@ -248,5 +248,6 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
 
 // Start Server
 app.listen(port, () => {
+  console.log("✅ ENV Variables:", process.env);
   console.log(`✅ API berjalan di http://localhost:${port}`);
 });
