@@ -30,7 +30,8 @@ const User = mongoose.model('User', new mongoose.Schema({
   password: { type: String, required: true },
   fullName: { type: String, required: true },
   address: { type: String, required: true },
-  phoneNumber: { type: String, required: true }
+  phoneNumber: { type: String, required: true },
+  fcmToken: { type: String } // 👈 Tambahkan ini
 }));
 
 const Transaction = mongoose.model('Transaction', new mongoose.Schema({
@@ -53,6 +54,8 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
 }));
+
+
 
 // Middleware: Verifikasi JWT
 const authenticateToken = (req, res, next) => {
@@ -141,35 +144,85 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
   }
 });
+// 📌 Update FCM Token
+app.post('/api/update-fcm', authenticateToken, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Token wajib diisi' });
 
+    await User.findByIdAndUpdate(req.user.id, { fcmToken: token });
+    res.status(200).json({ message: 'FCM token berhasil diperbarui' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error memperbarui FCM token', error: err.message });
+  }
+});
+// 📌 Webhook Midtrans (di server.js)
 app.post('/api/midtrans/webhook', async (req, res) => {
   try {
     const { order_id, transaction_status } = req.body;
 
-    // Konversi order_id ke ObjectId
     const transaction = await Transaction.findById(new mongoose.Types.ObjectId(order_id));
-    if (!transaction) {
-      return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
-    }
+    if (!transaction) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
 
-    // Update status berdasarkan status dari Midtrans
+    // Update status
     if (transaction_status === 'settlement') {
       transaction.status = 'sukses';
+      
+      // 👇 Tambahkan: Kirim notifikasi ke Firebase Cloud Messaging (FCM)
+      await sendNotificationToUser(
+        transaction.userId, 
+        'Pembayaran Berhasil', 
+        `Pembelian ${transaction.itemName} telah berhasil`
+      );
+      
     } else if (transaction_status === 'cancel' || transaction_status === 'expire' || transaction_status === 'failure') {
       transaction.status = 'gagal';
-    } else {
-      transaction.status = 'pending'; // Jika belum selesai
     }
 
     await transaction.save();
-
-    res.status(200).json({ message: 'Status transaksi diperbarui', status: transaction.status });
+    res.status(200).json({ message: 'Status transaksi diperbarui' });
   } catch (err) {
     console.error('❌ Webhook Error:', err);
     res.status(500).json({ message: 'Error di webhook', error: err.message });
   }
 });
 
+// Fungsi untuk mengirim notifikasi via FCM
+async function sendNotificationToUser(userId, title, body) {
+  try {
+    // 1. Dapatkan FCM token user dari database (Anda perlu menyimpannya saat login)
+    const user = await User.findById(userId);
+    if (!user || !user.fcmToken) return;
+
+    // 2. Kirim notifikasi menggunakan Firebase Admin SDK
+    const admin = require('firebase-admin');
+    
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+        })
+      });
+    }
+
+    const message = {
+      notification: { title, body },
+      token: user.fcmToken,
+      data: { 
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        status: 'done'
+      }
+    };
+
+    await admin.messaging().send(message);
+    console.log('✅ Notifikasi terkirim ke:', user.username);
+    
+  } catch (err) {
+    console.error('❌ Gagal mengirim notifikasi:', err);
+  }
+}
 
 
 // 📌 Register (Daftar Pengguna Baru)
