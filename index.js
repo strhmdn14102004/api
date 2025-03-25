@@ -1,3 +1,5 @@
+require('dotenv').config(); // Load variabel lingkungan dari .env
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -6,15 +8,15 @@ const cors = require('cors');
 const midtransClient = require('midtrans-client');
 
 const app = express();
-const port = 3000;
-const secretKey = '14102004';
+const port = process.env.PORT || 3000;
+const secretKey = process.env.JWT_SECRET;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Koneksi MongoDB
-mongoose.connect('mongodb+srv://satria:strhmdn141004@cluster.ta6xb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster')
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('✅ MongoDB Connected'))
   .catch((err) => console.error('❌ MongoDB Error:', err));
 
@@ -34,9 +36,9 @@ const Transaction = mongoose.model('Transaction', new mongoose.Schema({
   itemName: { type: String, required: true },
   price: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'gagal', 'sukses'], default: 'pending' },
+  paymentUrl: { type: String },
   createdAt: { type: Date, default: Date.now }
 }));
-
 
 const ImeiData = mongoose.model('ImeiData', new mongoose.Schema({
   name: { type: String, required: true },
@@ -47,7 +49,6 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
 }));
-
 
 // Middleware: Verifikasi JWT
 const authenticateToken = (req, res, next) => {
@@ -60,7 +61,14 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-// Transaksi Midtrans
+
+// Midtrans Config
+let snap = new midtransClient.Snap({
+  isProduction: false, 
+  serverKey: process.env.MIDTRANS_SERVER_KEY
+});
+
+// 📌 Transaksi Midtrans
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
@@ -75,7 +83,6 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 
     if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
 
-    // Simpan transaksi ke database (status pending)
     const transaction = new Transaction({
       userId: req.user.id,
       itemType,
@@ -87,15 +94,6 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 
     await transaction.save();
 
-    // Konfigurasi Midtrans Snap
-    let snap = new midtransClient.Snap({
-      isProduction: true, // Ganti dengan 'false' jika masih dalam mode sandbox
-      serverKey: process.env.MIDTRANS_SERVER_KEY || 'Mid-server-MS_dCKFova7mRVDoY3mDUeNy'
-    });
-
-    // Pastikan server key dikirim dalam format Basic Auth
-    let authHeader = Buffer.from(`${process.env.MIDTRANS_SERVER_KEY || 'Mid-server-MS_dCKFova7mRVDoY3mDUeNy'}`).toString("base64");
-
     let parameter = {
       transaction_details: {
         order_id: transaction._id.toString(),
@@ -103,22 +101,15 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
       },
       customer_details: {
         first_name: req.user.fullName,
-        email: req.user.username + "@example.com",
-        phone: req.user.phoneNumber
-      },
-      credit_card: {
-        secure: true
+        email: req.user.username + "@example.com"
       }
     };
 
-    // Buat transaksi di Midtrans
     const transactionData = await snap.createTransaction(parameter);
-
-    // Simpan URL pembayaran ke transaksi
     transaction.paymentUrl = transactionData.redirect_url;
     await transaction.save();
 
-    res.status(201).json({
+    res.status(201).json({ 
       message: 'Transaksi berhasil dibuat',
       paymentUrl: transaction.paymentUrl,
       data: transaction
@@ -129,6 +120,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
   }
 });
+
 // 📌 Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
@@ -145,66 +137,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-//transkasi
-// app.post('/api/transactions', authenticateToken, async (req, res) => {
-//   try {
-//     const { itemType, itemId } = req.body;
-//     if (!itemType || !itemId) return res.status(400).json({ message: 'Tipe item dan ID item wajib diisi' });
-
-//     let item;
-//     if (itemType === 'imei') {
-//       item = await ImeiData.findById(itemId);
-//     } else if (itemType === 'bypass') {
-//       item = await BypassData.findById(itemId);
-//     }
-
-//     if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
-
-//     const transaction = new Transaction({
-//       userId: req.user.id,
-//       itemType,
-//       itemId,
-//       itemName: item.name,
-//       price: item.price,
-//       status: 'pending'
-//     });
-
-//     await transaction.save();
-//     res.status(201).json({ message: 'Transaksi berhasil dibuat', data: transaction });
-//   } catch (err) {
-//     res.status(500).json({ message: 'Error saat membuat transaksi', error: err.message });
-//   }
-// });
-
-//update status transaksi
-app.post('/api/transactions/update', async (req, res) => {
-  try {
-    const { transactionId, status } = req.body;
-    if (!transactionId || !status) return res.status(400).json({ message: 'Transaction ID dan status wajib diisi' });
-
-    const transaction = await Transaction.findById(transactionId);
-    if (!transaction) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
-
-    transaction.status = status;
-    await transaction.save();
-
-    res.status(200).json({ message: 'Status transaksi berhasil diperbarui', data: transaction });
-  } catch (err) {
-    res.status(500).json({ message: 'Error saat memperbarui transaksi', error: err.message });
-  }
-});
-
-//lihat transaksi
-app.get('/api/transactions', authenticateToken, async (req, res) => {
-  try {
-    const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    res.status(200).json({ data: transactions });
-  } catch (err) {
-    res.status(500).json({ message: 'Error saat mengambil histori transaksi', error: err.message });
-  }
-});
-
-// 📌 Login (Autentikasi Pengguna & Kirim Data User)
+// 📌 Login
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -234,6 +167,33 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// 📌 Update Status Transaksi
+app.post('/api/transactions/update', async (req, res) => {
+  try {
+    const { transactionId, status } = req.body;
+    if (!transactionId || !status) return res.status(400).json({ message: 'Transaction ID dan status wajib diisi' });
+
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    transaction.status = status;
+    await transaction.save();
+
+    res.status(200).json({ message: 'Status transaksi berhasil diperbarui', data: transaction });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat memperbarui transaksi', error: err.message });
+  }
+});
+
+// 📌 Lihat Histori Transaksi
+app.get('/api/transactions', authenticateToken, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    res.status(200).json({ data: transactions });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saat mengambil histori transaksi', error: err.message });
+  }
+});
 // 📌 Ambil Data IMEI (Hanya Jika Login)
 app.get('/api/imei', authenticateToken, async (req, res) => {
   try {
