@@ -31,11 +31,6 @@ try {
   });
 }
 
-// Tambahkan pengecekan koneksi Firebase
-admin.app().listUsers(1)
-  .then(() => console.log("✅ Firebase Admin SDK berhasil terhubung"))
-  .catch(err => console.error("❌ Firebase Admin SDK error:", err));
-
 // Middleware
 app.use(cors());
 app.use(express.json());
