@@ -13,10 +13,10 @@ var admin = require("firebase-admin");
 
 var serviceAccount = require("./firebase_admin.json");
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
-});
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+//   databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
+// });
 
 // Dengan ini:
 const firebaseConfig = {
@@ -29,8 +29,6 @@ const firebaseConfig = {
 };
 
 admin.initializeApp(firebaseConfig);
-
-
 
 try {
   // Sync waktu server dengan NTP (untuk Linux-based systems seperti Railway)
