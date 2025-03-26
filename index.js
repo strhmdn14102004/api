@@ -9,11 +9,32 @@ const midtransClient = require('midtrans-client');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
-var admin = require("firebase-admin");
-admin.initializeApp({
-  credential: admin.credential.cert(require("./firebase_admin.json")),
-  databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
-});
+const admin = require("firebase-admin");
+
+// Pendekatan yang lebih robust untuk inisialisasi Firebase
+try {
+  // Coba gunakan file JSON terlebih dahulu
+  const serviceAccount = require("./firebase_admin.json");
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
+  });
+} catch (error) {
+  console.log("Menggunakan environment variables untuk Firebase");
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    }),
+    databaseURL: process.env.FIREBASE_DB_URL
+  });
+}
+
+// Tambahkan pengecekan koneksi Firebase
+admin.app().listUsers(1)
+  .then(() => console.log("✅ Firebase Admin SDK berhasil terhubung"))
+  .catch(err => console.error("❌ Firebase Admin SDK error:", err));
 
 // Middleware
 app.use(cors());
