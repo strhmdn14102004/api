@@ -144,77 +144,173 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
   }
 });
-// 📌 Update FCM Token
+// 📌 Update FCM Token - Improved Version
 app.post('/api/update-fcm', authenticateToken, async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ message: 'Token wajib diisi' });
+    const { fcm_token } = req.body; // Changed to match client's field name
+    
+    if (!fcm_token) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'FCM token wajib diisi' 
+      });
+    }
 
-    await User.findByIdAndUpdate(req.user.id, { fcmToken: token });
-    res.status(200).json({ message: 'FCM token berhasil diperbarui' });
+    // Validate token format (basic check)
+    if (!fcm_token.startsWith('c') && !fcm_token.includes(':')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format FCM token tidak valid'
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id, 
+      { fcmToken: fcm_token },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'FCM token berhasil diperbarui',
+      data: {
+        userId: updatedUser._id,
+        fcmToken: updatedUser.fcmToken
+      }
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Error memperbarui FCM token', error: err.message });
+    console.error('❌ FCM Update Error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error memperbarui FCM token',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
-// 📌 Webhook Midtrans (di server.js)
-const admin = require('./firebaseAdmin');
 
+// 📌 Webhook Midtrans - Improved Version
 app.post('/api/midtrans/webhook', async (req, res) => {
   try {
     const { order_id, transaction_status } = req.body;
 
+    // Validate payload
     if (!order_id || !transaction_status) {
-      return res.status(400).json({ message: 'Payload tidak lengkap' });
+      return res.status(400).json({
+        success: false,
+        message: 'Payload tidak lengkap'
+      });
     }
 
-    // Validasi ObjectId
+    // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(order_id)) {
-      return res.status(400).json({ message: 'Order ID tidak valid' });
+      return res.status(400).json({
+        success: false,
+        message: 'Format Order ID tidak valid'
+      });
     }
 
-    const transaction = await Transaction.findById(order_id);
+    const transaction = await Transaction.findById(order_id)
+      .populate('userId', 'fcmToken');
+    
     if (!transaction) {
-      return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+      return res.status(404).json({
+        success: false,
+        message: 'Transaksi tidak ditemukan'
+      });
     }
 
-    // Update status transaksi
+    // Update transaction status
+    let newStatus;
     if (transaction_status === 'settlement') {
-      transaction.status = 'sukses';
-      await sendNotificationToUser(
-        transaction.userId,
-        'Pembayaran Berhasil',
-        `Pembelian ${transaction.itemName} telah berhasil`
-      );
+      newStatus = 'sukses';
     } else if (['cancel', 'expire', 'failure'].includes(transaction_status)) {
-      transaction.status = 'gagal';
+      newStatus = 'gagal';
     }
 
-    await transaction.save();
-    res.status(200).json({ message: 'Status transaksi diperbarui' });
+    if (newStatus) {
+      transaction.status = newStatus;
+      await transaction.save();
+
+      // Send notification only for successful payments
+      if (newStatus === 'sukses' && transaction.userId?.fcmToken) {
+        await sendNotificationToUser(
+          transaction.userId.fcmToken,
+          'Pembayaran Berhasil',
+          `Pembelian ${transaction.itemName} telah berhasil`
+        );
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Status transaksi diperbarui'
+    });
+
   } catch (err) {
-    console.error('❌ Webhook Error:', JSON.stringify(err, null, 2));
-    res.status(500).json({ message: 'Error di webhook', error: err.message });
+    console.error('❌ Webhook Error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error memproses webhook',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
-// ✅ Fungsi untuk mengirim notifikasi via FCM
-async function sendNotificationToUser(userId, title, body) {
+// ✅ Improved Notification Function
+async function sendNotificationToUser(fcmToken, title, body) {
   try {
-    console.log(`Mengirim notifikasi ke user ${userId}`);
-    const user = await User.findById(userId);
-    if (!user) {
-      console.log('User tidak ditemukan');
-      return;
-    }
-    if (!user.fcmToken) {
-      console.log('User tidak memiliki FCM token');
+    if (!fcmToken) {
+      console.log('❌ Tidak ada FCM token');
       return;
     }
 
-    console.log(`Mengirim ke token: ${user.fcmToken}`);
-    // ... kode pengiriman notifikasi ...
+    console.log(`📤 Mengirim notifikasi ke token: ${fcmToken.substring(0, 10)}...`);
+
+    const message = {
+      notification: { 
+        title,
+        body
+      },
+      token: fcmToken,
+      data: {
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        type: 'payment_success',
+        timestamp: new Date().toISOString()
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1
+          }
+        }
+      }
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log('✅ Notifikasi terkirim:', response);
+
   } catch (err) {
-    console.error('Error detail:', err.stack);
+    console.error('❌ Gagal mengirim notifikasi:', err);
+    
+    // Handle specific FCM errors
+    if (err.code === 'messaging/invalid-registration-token' || 
+        err.code === 'messaging/registration-token-not-registered') {
+      // Remove invalid token from user
+      await User.updateOne(
+        { fcmToken: fcmToken },
+        { $unset: { fcmToken: 1 } }
+      );
+      console.log('🗑️ FCM token tidak valid, dihapus dari database');
+    }
   }
 }
 
