@@ -23,21 +23,23 @@ if (!serviceAccount.private_key || !serviceAccount.private_key.includes('BEGIN P
   process.exit(1);
 }
 
-// Inisialisasi dengan error handling
+
 try {
+  if (!serviceAccount.private_key || !serviceAccount.client_email) {
+    throw new Error("Konfigurasi Firebase tidak valid");
+  }
+
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: serviceAccount.project_id,
-      clientEmail: serviceAccount.client_email,
-      privateKey: serviceAccount.private_key
-    }),
+    credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
   });
-  console.log('✅ Firebase berhasil diinisialisasi');
+
+  console.log("✅ Firebase berhasil diinisialisasi");
 } catch (error) {
-  console.error('❌ Gagal menginisialisasi Firebase:', error);
+  console.error("❌ Gagal menginisialisasi Firebase:", error.message);
   process.exit(1);
 }
+
 
 console.log('✅ Firebase berhasil diinisialisasi');
 console.log('⏰ Waktu Server (UTC):', new Date().toISOString());
