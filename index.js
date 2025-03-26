@@ -1,4 +1,4 @@
-require('dotenv').config(); // Load variabel lingkungan dari .env
+require('dotenv').config();
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -16,7 +16,7 @@ const serviceAccount = require('./firebase_admin.json');
 try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app'
+    databaseURL: process.env.FIREBASE_DB_URL
   });
   console.log('✅ Firebase Admin berhasil diinisialisasi');
 } catch (error) {
@@ -450,4 +450,6 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
 app.listen(port, () => {
   console.log("✅ ENV Variables:", process.env);
   console.log(`✅ API berjalan di http://localhost:${port}`);
+  console.log('⏰ Waktu Server (UTC):', new Date().toISOString());
+
 });
