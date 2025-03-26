@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+const { execSync } = require('child_process');
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -17,6 +17,29 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
+
+// Dengan ini:
+const firebaseConfig = {
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+  }),
+  databaseURL: process.env.FIREBASE_DB_URL
+};
+
+admin.initializeApp(firebaseConfig);
+
+
+
+try {
+  // Sync waktu server dengan NTP (untuk Linux-based systems seperti Railway)
+  execSync('sudo apt-get install -y ntpdate');
+  execSync('sudo ntpdate pool.ntp.org');
+  console.log('✅ Waktu server disinkronisasi');
+} catch (err) {
+  console.warn('⚠️ Tidak bisa sinkronisasi waktu server:', err.message);
+}
 
 // Middleware
 app.use(cors());
