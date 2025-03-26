@@ -6,22 +6,22 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const midtransClient = require('midtrans-client');
-
-const admin = require('firebase-admin');
-const serviceAccount = require('./firebase_admin.json');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
+
+const admin = require('firebase-admin');
+const serviceAccount = require('./firebase_admin.json');
 
 try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: 'https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app'
   });
-  console.log('✅ Firebase Admin initialized successfully');
+  console.log('✅ Firebase Admin berhasil diinisialisasi');
 } catch (error) {
-  console.error('❌ Failed to initialize Firebase Admin:', error);
-  process.exit(1); // Exit if initialization fails
+  console.error('❌ Gagal menginisialisasi Firebase Admin:', error);
+  process.exit(1);
 }
 // Middleware
 app.use(cors());
