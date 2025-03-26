@@ -8,9 +8,10 @@ const midtransClient = require('midtrans-client');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
-
 const admin = require("firebase-admin");
-const serviceAccount = require("./firebase-admin-config.json");
+var serviceAccount = require("./firebase-admin-config.json");
+
+
 
 // Debug Firebase Config
 console.log('🔍 Memeriksa Firebase Config...');
@@ -18,11 +19,16 @@ console.log('Project ID:', serviceAccount.project_id);
 console.log('Client Email:', serviceAccount.client_email);
 console.log('Private Key Length:', serviceAccount.private_key?.length);
 
-// Initialize Firebase
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
+// Initialize Firebase
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+//   databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
+// });
 
 console.log('✅ Firebase berhasil diinisialisasi');
 console.log('⏰ Waktu Server (UTC):', new Date().toISOString());
