@@ -200,19 +200,21 @@ app.post('/api/midtrans/webhook', async (req, res) => {
 // ✅ Fungsi untuk mengirim notifikasi via FCM
 async function sendNotificationToUser(userId, title, body) {
   try {
+    console.log(`Mengirim notifikasi ke user ${userId}`);
     const user = await User.findById(userId);
-    if (!user || !user.fcmToken) return;
+    if (!user) {
+      console.log('User tidak ditemukan');
+      return;
+    }
+    if (!user.fcmToken) {
+      console.log('User tidak memiliki FCM token');
+      return;
+    }
 
-    const message = {
-      notification: { title, body },
-      token: user.fcmToken,
-      data: { click_action: 'FLUTTER_NOTIFICATION_CLICK', status: 'done' }
-    };
-
-    await admin.messaging().send(message);
-    console.log('✅ Notifikasi terkirim ke:', user.username);
+    console.log(`Mengirim ke token: ${user.fcmToken}`);
+    // ... kode pengiriman notifikasi ...
   } catch (err) {
-    console.error('❌ Gagal mengirim notifikasi:', JSON.stringify(err, null, 2));
+    console.error('Error detail:', err.stack);
   }
 }
 
