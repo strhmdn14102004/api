@@ -6,11 +6,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const midtransClient = require('midtrans-client');
-
+const admin = require('firebase-admin');
+const serviceAccount = require('././firebase_admin.json');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
 
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: 'https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app' // Ganti dengan URL database Anda
+});
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -301,10 +306,8 @@ async function sendNotificationToUser(fcmToken, title, body) {
   } catch (err) {
     console.error('❌ Gagal mengirim notifikasi:', err);
     
-    // Handle specific FCM errors
     if (err.code === 'messaging/invalid-registration-token' || 
         err.code === 'messaging/registration-token-not-registered') {
-      // Remove invalid token from user
       await User.updateOne(
         { fcmToken: fcmToken },
         { $unset: { fcmToken: 1 } }
