@@ -11,18 +11,13 @@ const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
 
 const admin = require('firebase-admin');
-const serviceAccount = require('./firebase_admin.json');
+const serviceAccount = require(process.env.FIREBASE_CREDENTIALS);
 
-try {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: process.env.FIREBASE_DB_URL
-  });
-  console.log('✅ Firebase Admin berhasil diinisialisasi');
-} catch (error) {
-  console.error('❌ Gagal menginisialisasi Firebase Admin:', error);
-  process.exit(1);
-}
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DB_URL
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
