@@ -10,16 +10,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
 
-const admin = require('firebase-admin');
-const serviceAccount = require(process.env.FIREBASE_CREDENTIALS);
+var admin = require("firebase-admin");
+
+var serviceAccount = require("./firebase_admin.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-  }),
-  databaseURL: process.env.FIREBASE_DB_URL
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 
 // Middleware
