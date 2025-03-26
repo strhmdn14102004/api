@@ -9,13 +9,9 @@ const midtransClient = require('midtrans-client');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
-
 var admin = require("firebase-admin");
-
-var serviceAccount = require("./firebase_admin.json");
-
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(require("./firebase_admin.json")),
   databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 
