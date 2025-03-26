@@ -1,14 +1,16 @@
 require('dotenv').config();
-const { execSync } = require('child_process');
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const { execSync } = require('child_process');
 const midtransClient = require('midtrans-client');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
+
 var admin = require("firebase-admin");
 
 var serviceAccount = require("./firebase_admin.json");
@@ -19,6 +21,7 @@ var serviceAccount = require("./firebase_admin.json");
 // });
 
 // Dengan ini:
+// Di index.js, ganti bagian inisialisasi Firebase dengan:
 const firebaseConfig = {
   credential: admin.credential.cert({
     projectId: process.env.FIREBASE_PROJECT_ID,
@@ -30,14 +33,17 @@ const firebaseConfig = {
 
 admin.initializeApp(firebaseConfig);
 
+console.log('⏰ Waktu Server Sebelum Sync (UTC):', new Date().toISOString());
+
 try {
-  // Sync waktu server dengan NTP (untuk Linux-based systems seperti Railway)
-  execSync('sudo apt-get install -y ntpdate');
-  execSync('sudo ntpdate pool.ntp.org');
+  execSync('apt-get update && apt-get install -y ntpdate');
+  execSync('ntpdate -u pool.ntp.org');
   console.log('✅ Waktu server disinkronisasi');
 } catch (err) {
-  console.warn('⚠️ Tidak bisa sinkronisasi waktu server:', err.message);
+  console.warn('⚠️ Gagal sinkronisasi waktu:', err.message);
 }
+
+console.log('⏰ Waktu Server Setelah Sync (UTC):', new Date().toISOString());
 
 // Middleware
 app.use(cors());
