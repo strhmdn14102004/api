@@ -251,17 +251,16 @@ app.post('/api/midtrans/webhook', async (req, res) => {
       newStatus = 'gagal';
     }
 
-    if (newStatus) {
-      transaction.status = newStatus;
-      await transaction.save();
-
-      // Send notification only for successful payments
-      if (newStatus === 'sukses' && transaction.userId?.fcmToken) {
+    if (newStatus === 'sukses' && transaction.userId?.fcmToken) {
+      try {
         await sendNotificationToUser(
           transaction.userId.fcmToken,
           'Pembayaran Berhasil',
           `Pembelian ${transaction.itemName} telah berhasil`
         );
+      } catch (notifError) {
+        console.error('❌ Error mengirim notifikasi:', notifError);
+        // Tetap lanjutkan proses meskipun notifikasi gagal
       }
     }
 
@@ -280,7 +279,6 @@ app.post('/api/midtrans/webhook', async (req, res) => {
   }
 });
 
-// ✅ Improved Notification Function
 async function sendNotificationToUser(fcmToken, title, body) {
   try {
     if (!fcmToken) {
@@ -296,12 +294,13 @@ async function sendNotificationToUser(fcmToken, title, body) {
         body
       },
       token: fcmToken,
-      data: {
-        click_action: 'FLUTTER_NOTIFICATION_CLICK',
-        type: 'payment_success',
-        timestamp: new Date().toISOString()
+      android: {
+        priority: 'high'
       },
       apns: {
+        headers: {
+          'apns-priority': '10'
+        },
         payload: {
           aps: {
             sound: 'default',
@@ -311,8 +310,19 @@ async function sendNotificationToUser(fcmToken, title, body) {
       }
     };
 
-    const response = await admin.messaging().send(message);
-    console.log('✅ Notifikasi terkirim:', response);
+    console.log('📝 Pesan notifikasi:', JSON.stringify(message, null, 2));
+    
+    const response = await admin.messaging().send(message)
+      .then((response) => {
+        console.log('✅ Notifikasi terkirim:', response);
+        return response;
+      })
+      .catch((error) => {
+        console.error('❌ Error pengiriman:', error);
+        throw error;
+      });
+
+    return response;
 
   } catch (err) {
     console.error('❌ Gagal mengirim notifikasi:', err);
@@ -325,6 +335,8 @@ async function sendNotificationToUser(fcmToken, title, body) {
       );
       console.log('🗑️ FCM token tidak valid, dihapus dari database');
     }
+    
+    throw err;
   }
 }
 
