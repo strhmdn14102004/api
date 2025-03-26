@@ -519,6 +519,82 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
   }
 });
 
+// 📌 Ambil Detail Transaksi Berdasarkan ID
+app.get('/api/transactions/:id', authenticateToken, async (req, res) => {
+  try {
+    const transactionId = req.params.id;
+    
+    if (!mongoose.Types.ObjectId.isValid(transactionId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Format ID transaksi tidak valid' 
+      });
+    }
+    
+    const transaction = await Transaction.findById(transactionId)
+      .populate('userId', 'fullName phoneNumber');
+      
+    if (!transaction) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Transaksi tidak ditemukan' 
+      });
+    }
+    
+    // Verifikasi bahwa transaksi milik user yang sedang login
+    if (transaction.userId._id.toString() !== req.user.id) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Anda tidak memiliki akses ke transaksi ini' 
+      });
+    }
+    
+    // Format status untuk tampilan
+    let statusDisplay;
+    switch (transaction.status) {
+      case 'pending':
+        statusDisplay = 'Menunggu Pembayaran ⏳';
+        break;
+      case 'sukses':
+        statusDisplay = 'Sukses ✅';
+        break;
+      case 'gagal':
+        statusDisplay = 'Gagal ❌';
+        break;
+      default:
+        statusDisplay = transaction.status;
+    }
+    
+    // Format response
+    const response = {
+      success: true,
+      message: 'Detail transaksi berhasil ditemukan',
+      data: {
+        transactionDetails: {
+          'ID Transaksi': transaction._id.toString(),
+          'Pelanggan': transaction.userId.fullName,
+          'No. HP': transaction.userId.phoneNumber,
+          'Produk': transaction.itemName,
+          'Harga': `Rp${transaction.price.toLocaleString('id-ID')}`,
+          'Waktu': transaction.createdAt.toLocaleString('id-ID'),
+          '------------------------': '------------------------',
+          'Status Terbaru': statusDisplay
+        },
+        rawData: transaction // Data lengkap untuk keperluan development
+      }
+    };
+    
+    res.status(200).json(response);
+  } catch (err) {
+    console.error('❌ Error mengambil detail transaksi:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Gagal mengambil detail transaksi',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
+
 // Start Server
 app.listen(port, () => {
   console.log("✅ ENV Variables:", process.env);
