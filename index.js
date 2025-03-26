@@ -157,70 +157,62 @@ app.post('/api/update-fcm', authenticateToken, async (req, res) => {
   }
 });
 // 📌 Webhook Midtrans (di server.js)
+const admin = require('./firebaseAdmin');
+
 app.post('/api/midtrans/webhook', async (req, res) => {
   try {
     const { order_id, transaction_status } = req.body;
 
-    const transaction = await Transaction.findById(new mongoose.Types.ObjectId(order_id));
-    if (!transaction) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    if (!order_id || !transaction_status) {
+      return res.status(400).json({ message: 'Payload tidak lengkap' });
+    }
 
-    // Update status
+    // Validasi ObjectId
+    if (!mongoose.Types.ObjectId.isValid(order_id)) {
+      return res.status(400).json({ message: 'Order ID tidak valid' });
+    }
+
+    const transaction = await Transaction.findById(order_id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    }
+
+    // Update status transaksi
     if (transaction_status === 'settlement') {
       transaction.status = 'sukses';
-      
-      // 👇 Tambahkan: Kirim notifikasi ke Firebase Cloud Messaging (FCM)
       await sendNotificationToUser(
-        transaction.userId, 
-        'Pembayaran Berhasil', 
+        transaction.userId,
+        'Pembayaran Berhasil',
         `Pembelian ${transaction.itemName} telah berhasil`
       );
-      
-    } else if (transaction_status === 'cancel' || transaction_status === 'expire' || transaction_status === 'failure') {
+    } else if (['cancel', 'expire', 'failure'].includes(transaction_status)) {
       transaction.status = 'gagal';
     }
 
     await transaction.save();
     res.status(200).json({ message: 'Status transaksi diperbarui' });
   } catch (err) {
-    console.error('❌ Webhook Error:', err);
+    console.error('❌ Webhook Error:', JSON.stringify(err, null, 2));
     res.status(500).json({ message: 'Error di webhook', error: err.message });
   }
 });
 
-// Fungsi untuk mengirim notifikasi via FCM
+// ✅ Fungsi untuk mengirim notifikasi via FCM
 async function sendNotificationToUser(userId, title, body) {
   try {
-    // 1. Dapatkan FCM token user dari database (Anda perlu menyimpannya saat login)
     const user = await User.findById(userId);
     if (!user || !user.fcmToken) return;
-
-    // 2. Kirim notifikasi menggunakan Firebase Admin SDK
-    const admin = require('firebase-admin');
-    
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-        })
-      });
-    }
 
     const message = {
       notification: { title, body },
       token: user.fcmToken,
-      data: { 
-        click_action: 'FLUTTER_NOTIFICATION_CLICK',
-        status: 'done'
-      }
+      data: { click_action: 'FLUTTER_NOTIFICATION_CLICK', status: 'done' }
     };
 
     await admin.messaging().send(message);
     console.log('✅ Notifikasi terkirim ke:', user.username);
-    
   } catch (err) {
-    console.error('❌ Gagal mengirim notifikasi:', err);
+    console.error('❌ Gagal mengirim notifikasi:', JSON.stringify(err, null, 2));
   }
 }
 
