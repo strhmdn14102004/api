@@ -1,49 +1,31 @@
 require('dotenv').config();
-
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const { execSync } = require('child_process');
 const midtransClient = require('midtrans-client');
 const app = express();
 const port = process.env.PORT || 3000;
 const secretKey = process.env.JWT_SECRET;
 
-var admin = require("firebase-admin");
+const admin = require("firebase-admin");
+const serviceAccount = require("./firebase-admin-config.json");
 
-var serviceAccount = require("./firebase_admin.json");
+// Debug Firebase Config
+console.log('🔍 Memeriksa Firebase Config...');
+console.log('Project ID:', serviceAccount.project_id);
+console.log('Client Email:', serviceAccount.client_email);
+console.log('Private Key Length:', serviceAccount.private_key?.length);
 
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-//   databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
-// });
+// Initialize Firebase
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
 
-// Dengan ini:
-// Di index.js, ganti bagian inisialisasi Firebase dengan:
-const firebaseConfig = {
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-  }),
-  databaseURL: process.env.FIREBASE_DB_URL
-};
-
-admin.initializeApp(firebaseConfig);
-
-console.log('⏰ Waktu Server Sebelum Sync (UTC):', new Date().toISOString());
-
-try {
-  execSync('apt-get update && apt-get install -y ntpdate');
-  execSync('ntpdate -u pool.ntp.org');
-  console.log('✅ Waktu server disinkronisasi');
-} catch (err) {
-  console.warn('⚠️ Gagal sinkronisasi waktu:', err.message);
-}
-
-console.log('⏰ Waktu Server Setelah Sync (UTC):', new Date().toISOString());
+console.log('✅ Firebase berhasil diinisialisasi');
+console.log('⏰ Waktu Server (UTC):', new Date().toISOString());
 
 // Middleware
 app.use(cors());
