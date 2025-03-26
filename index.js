@@ -25,7 +25,6 @@ try {
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://satset-toko-default-rtdb.asia-southeast1.firebasedatabase.app"
   });
-
   console.log("✅ Firebase berhasil diinisialisasi");
 } catch (error) {
   console.error("❌ Gagal menginisialisasi Firebase:", error.message);
@@ -80,7 +79,6 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Akses ditolak, token tidak tersedia' });
-
   jwt.verify(token, secretKey, (err, decoded) => {
     if (err) return res.status(403).json({ message: 'Token tidak valid' });
     req.user = decoded;
@@ -99,20 +97,16 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
     if (!itemType || !itemId) return res.status(400).json({ message: 'Tipe item dan ID item wajib diisi' });
-
     let item;
     if (itemType === 'imei') {
       item = await ImeiData.findById(itemId);
     } else if (itemType === 'bypass') {
       item = await BypassData.findById(itemId);
     }
-
     if (!item) return res.status(404).json({ message: 'Item tidak ditemukan' });
-
     // Ambil data user dari database
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
-
     // Buat transaksi di database
     const transaction = new Transaction({
       userId: req.user.id,
@@ -123,7 +117,6 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
       status: 'pending'
     });
     await transaction.save();
-
     // Parameter pembayaran Midtrans
     let parameter = {
       transaction_details: {
@@ -144,37 +137,32 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
         phone: user.phoneNumber
       }
     };
-
     // Kirim request ke Midtrans
     const transactionData = await snap.createTransaction(parameter);
-    
     // Simpan payment URL ke database
     transaction.paymentUrl = transactionData.redirect_url;
     await transaction.save();
-
     res.status(201).json({ 
       message: 'Transaksi berhasil dibuat',
       paymentUrl: transaction.paymentUrl,
       data: transaction
     });
-
   } catch (err) {
     console.error('❌ Midtrans Error:', err);
     res.status(500).json({ message: 'Gagal membuat payment link', error: err.message });
   }
 });
+
 // 📌 Update FCM Token - Improved Version
 app.post('/api/update-fcm', authenticateToken, async (req, res) => {
   try {
     const { fcm_token } = req.body; // Changed to match client's field name
-    
     if (!fcm_token) {
       return res.status(400).json({ 
         success: false,
         message: 'FCM token wajib diisi' 
       });
     }
-
     // Validate token format (basic check)
     if (!fcm_token.startsWith('c') && !fcm_token.includes(':')) {
       return res.status(400).json({
@@ -182,20 +170,17 @@ app.post('/api/update-fcm', authenticateToken, async (req, res) => {
         message: 'Format FCM token tidak valid'
       });
     }
-
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id, 
       { fcmToken: fcm_token },
       { new: true }
     );
-
     if (!updatedUser) {
       return res.status(404).json({
         success: false,
         message: 'User tidak ditemukan'
       });
     }
-
     res.status(200).json({
       success: true,
       message: 'FCM token berhasil diperbarui',
@@ -204,7 +189,6 @@ app.post('/api/update-fcm', authenticateToken, async (req, res) => {
         fcmToken: updatedUser.fcmToken
       }
     });
-
   } catch (err) {
     console.error('❌ FCM Update Error:', err);
     res.status(500).json({
@@ -219,7 +203,6 @@ app.post('/api/update-fcm', authenticateToken, async (req, res) => {
 app.post('/api/midtrans/webhook', async (req, res) => {
   try {
     const { order_id, transaction_status } = req.body;
-
     // Validate payload
     if (!order_id || !transaction_status) {
       return res.status(400).json({
@@ -227,7 +210,6 @@ app.post('/api/midtrans/webhook', async (req, res) => {
         message: 'Payload tidak lengkap'
       });
     }
-
     // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(order_id)) {
       return res.status(400).json({
@@ -235,17 +217,14 @@ app.post('/api/midtrans/webhook', async (req, res) => {
         message: 'Format Order ID tidak valid'
       });
     }
-
     const transaction = await Transaction.findById(order_id)
       .populate('userId', 'fcmToken');
-    
     if (!transaction) {
       return res.status(404).json({
         success: false,
         message: 'Transaksi tidak ditemukan'
       });
     }
-
     // Update transaction status
     let newStatus;
     if (transaction_status === 'settlement') {
@@ -253,13 +232,11 @@ app.post('/api/midtrans/webhook', async (req, res) => {
     } else if (['cancel', 'expire', 'failure'].includes(transaction_status)) {
       newStatus = 'gagal';
     }
-
     // TAMBAHKAN INI: Update status transaksi di database
     if (newStatus) {
       transaction.status = newStatus;
       await transaction.save();
     }
-
     // Kirim notifikasi jika pembayaran sukses
     if (newStatus === 'sukses' && transaction.userId?.fcmToken) {
       try {
@@ -273,7 +250,6 @@ app.post('/api/midtrans/webhook', async (req, res) => {
         // Tetap lanjutkan proses meskipun notifikasi gagal
       }
     }
-
     res.status(200).json({
       success: true,
       message: 'Status transaksi diperbarui',
@@ -299,9 +275,7 @@ async function sendNotificationToUser(fcmToken, title, body) {
       console.log('❌ Tidak ada FCM token');
       return;
     }
-
     console.log(`📤 Mengirim notifikasi ke token: ${fcmToken.substring(0, 10)}...`);
-
     const message = {
       notification: { 
         title,
@@ -323,9 +297,7 @@ async function sendNotificationToUser(fcmToken, title, body) {
         }
       }
     };
-
     console.log('📝 Pesan notifikasi:', JSON.stringify(message, null, 2));
-    
     const response = await admin.messaging().send(message)
       .then((response) => {
         console.log('✅ Notifikasi terkirim:', response);
@@ -335,12 +307,9 @@ async function sendNotificationToUser(fcmToken, title, body) {
         console.error('❌ Error pengiriman:', error);
         throw error;
       });
-
     return response;
-
   } catch (err) {
-    console.error('❌ Gagal mengirim notifikasi:', err);
-    
+    console.error('❌ Gagal mengirim notifikasi:', err);   
     if (err.code === 'messaging/invalid-registration-token' || 
         err.code === 'messaging/registration-token-not-registered') {
       await User.updateOne(
@@ -349,22 +318,18 @@ async function sendNotificationToUser(fcmToken, title, body) {
       );
       console.log('🗑️ FCM token tidak valid, dihapus dari database');
     }
-    
     throw err;
   }
 }
-
 
 // 📌 Register (Daftar Pengguna Baru)
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, fullName, address, phoneNumber } = req.body;
     if (!username || !password || !fullName || !address || !phoneNumber) return res.status(400).json({ message: 'Semua field wajib diisi' });
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username, password: hashedPassword, fullName, address, phoneNumber });
     await newUser.save();
-
     res.status(201).json({ message: 'User berhasil didaftarkan' });
   } catch (err) {
     res.status(500).json({ message: 'Error saat registrasi', error: err.message });
@@ -376,15 +341,11 @@ app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Username dan password wajib diisi' });
-
     const user = await User.findOne({ username });
     if (!user) return res.status(401).json({ message: 'User tidak ditemukan' });
-
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Password salah' });
-
     const token = jwt.sign({ id: user._id, username: user.username, fullName: user.fullName }, secretKey, { expiresIn: '1h' });
-
     res.status(200).json({
       message: 'Login berhasil',
       token,
@@ -406,13 +367,10 @@ app.post('/api/transactions/update', async (req, res) => {
   try {
     const { transactionId, status } = req.body;
     if (!transactionId || !status) return res.status(400).json({ message: 'Transaction ID dan status wajib diisi' });
-
     const transaction = await Transaction.findById(transactionId);
     if (!transaction) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
-
     transaction.status = status;
     await transaction.save();
-
     res.status(200).json({ message: 'Status transaksi berhasil diperbarui', data: transaction });
   } catch (err) {
     res.status(500).json({ message: 'Error saat memperbarui transaksi', error: err.message });
@@ -428,6 +386,7 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error saat mengambil histori transaksi', error: err.message });
   }
 });
+
 // 📌 Ambil Data IMEI (Hanya Jika Login)
 app.get('/api/imei', authenticateToken, async (req, res) => {
   try {
@@ -453,10 +412,8 @@ app.post('/api/imei', authenticateToken, async (req, res) => {
   try {
     const { name, price } = req.body;
     if (!name || !price) return res.status(400).json({ message: 'Nama dan harga wajib diisi' });
-
     const newImeiData = new ImeiData({ name, price });
     await newImeiData.save();
-
     res.status(201).json({ message: 'Data IMEI berhasil ditambahkan', data: newImeiData });
   } catch (err) {
     res.status(500).json({ message: 'Error saat menambahkan data IMEI', error: err.message });
@@ -469,7 +426,6 @@ app.post('/api/bypass', authenticateToken, async (req, res) => {
     const { name, price } = req.body;
     const newBypass = new BypassData({ name, price });
     await newBypass.save();
-
     res.status(201).json({ message: 'Data Bypass berhasil ditambahkan', data: newBypass });
   } catch (err) {
     res.status(500).json({ message: 'Error saat menambahkan data Bypass', error: err.message });
@@ -481,5 +437,4 @@ app.listen(port, () => {
   console.log("✅ ENV Variables:", process.env);
   console.log(`✅ API berjalan di http://localhost:${port}`);
   console.log('⏰ Waktu Server (UTC):', new Date().toISOString());
-
 });
