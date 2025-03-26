@@ -264,8 +264,8 @@ app.post('/api/midtrans/webhook', async (req, res) => {
       try {
         await sendNotificationToUser(
           transaction.userId.fcmToken,
-          'Pembayaran Berhasil',
-          `Pembelian ${transaction.itemName} telah berhasil`
+          'Pembayaran Berhasil Dilakukan',
+          `Pembelian ${transaction.itemType} ${transaction.itemName} telah berhasil dilakukan, cek riwayat pembelianmu dimenu histori transaksi`
         );
       } catch (notifError) {
         console.error('❌ Error mengirim notifikasi:', notifError);
