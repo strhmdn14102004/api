@@ -11,18 +11,10 @@ const secretKey = process.env.JWT_SECRET;
 const admin = require("firebase-admin");
 const serviceAccount = require("./firebase-admin-config.json");
 
-// Debug Firebase Config
-console.log('🔍 Memeriksa Firebase Config...');
-console.log('Project ID:', serviceAccount.project_id);
-console.log('Client Email:', serviceAccount.client_email);
-console.log('Private Key Length:', serviceAccount.private_key?.length);
-
-// Pastikan private key sudah benar
 if (!serviceAccount.private_key || !serviceAccount.private_key.includes('BEGIN PRIVATE KEY')) {
   console.error('❌ Format private key tidak valid');
   process.exit(1);
 }
-
 
 try {
   if (!serviceAccount.private_key || !serviceAccount.client_email) {
@@ -39,10 +31,6 @@ try {
   console.error("❌ Gagal menginisialisasi Firebase:", error.message);
   process.exit(1);
 }
-
-
-console.log('✅ Firebase berhasil diinisialisasi');
-console.log('⏰ Waktu Server (UTC):', new Date().toISOString());
 
 // Middleware
 app.use(cors());
@@ -87,8 +75,6 @@ const BypassData = mongoose.model('BypassData', new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
 }));
-
-
 
 // Middleware: Verifikasi JWT
 const authenticateToken = (req, res, next) => {
@@ -268,6 +254,13 @@ app.post('/api/midtrans/webhook', async (req, res) => {
       newStatus = 'gagal';
     }
 
+    // TAMBAHKAN INI: Update status transaksi di database
+    if (newStatus) {
+      transaction.status = newStatus;
+      await transaction.save();
+    }
+
+    // Kirim notifikasi jika pembayaran sukses
     if (newStatus === 'sukses' && transaction.userId?.fcmToken) {
       try {
         await sendNotificationToUser(
@@ -283,7 +276,11 @@ app.post('/api/midtrans/webhook', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Status transaksi diperbarui'
+      message: 'Status transaksi diperbarui',
+      data: {
+        transactionId: transaction._id,
+        newStatus: transaction.status
+      }
     });
 
   } catch (err) {
