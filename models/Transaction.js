@@ -8,7 +8,7 @@ const transactionSchema = new mongoose.Schema({
   },
   itemType: { 
     type: String, 
-    enum: ['imei', 'bypass', 'fmi-off'],
+    enum: ['imei', 'bypass'], 
     required: true 
   },
   itemId: { 
