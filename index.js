@@ -6,7 +6,6 @@ const app = express();
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const bypassRoutes = require('./routes/bypassRoutes');
-const FmiOffRoutes = require('./routes/fmioffRoutes');
 const imeiRoutes = require('./routes/imeiRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -30,7 +29,6 @@ require('./config/telegram');
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/bypass', bypassRoutes);
-app.use('/api/FmiOff', FmiOffRoutes);
 app.use('/api/imei', imeiRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
