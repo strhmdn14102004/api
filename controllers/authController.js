@@ -4,6 +4,8 @@ const emailjs = require('emailjs-com');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const axios = require('axios');
+const fetch = require('node-fetch');
 const secretKey = process.env.JWT_SECRET;
 
 // Register new user
