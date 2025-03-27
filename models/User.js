@@ -28,6 +28,12 @@ const userSchema = new mongoose.Schema({
   },
   fcmToken: { 
     type: String 
+  },
+  resetPasswordToken: {
+    type: String
+  },
+  resetPasswordExpires: {
+    type: Date
   }
 });
 
