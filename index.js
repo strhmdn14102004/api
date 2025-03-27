@@ -9,6 +9,7 @@ const bypassRoutes = require('./routes/bypassRoutes');
 const imeiRoutes = require('./routes/imeiRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const fmiOffRoutes = require('./routes/fmioffRoutes');
 
 // Middleware
 app.use(cors());
@@ -30,6 +31,7 @@ require('./config/telegram');
 app.use('/api/auth', authRoutes);
 app.use('/api/bypass', bypassRoutes);
 app.use('/api/imei', imeiRoutes);
+app.use('/api/fmi-off', fmiOffRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 
