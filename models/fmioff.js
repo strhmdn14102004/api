@@ -17,4 +17,4 @@ const fmiOffSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('FmiOff', fmiOffSchema);
+module.exports = mongoose.model('fmioff', fmiOffSchema);

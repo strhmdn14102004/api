@@ -1,4 +1,4 @@
-const FmiOff = require('../models/FmiOff');
+const FmiOff = require('../models/fmioff');
 const { authenticateToken } = require('../middlewares/authMiddleware');
 
 // Get all FMI Off data
