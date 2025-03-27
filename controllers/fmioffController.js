@@ -1,30 +1,30 @@
-const BypassData = require('../models/BypassData');
+const fmioffData = require('../models/FmioffData');
 const authenticateToken = require('../middlewares/authMiddleware');
 
-// Get all bypass data
-exports.getAllBypass = async (req, res) => {
+// Get all fmioff data
+exports.getAllfmioff = async (req, res) => {
   try {
-    const bypassList = await BypassData.find().select('-__v');
-    res.status(200).json(bypassList);
+    const fmioffList = await fmioffData.find().select('-__v');
+    res.status(200).json(fmioffList);
   } catch (err) {
-    res.status(500).json({ message: 'Error saat mengambil data Bypass', error: err.message });
+    res.status(500).json({ message: 'Error saat mengambil data fmioff', error: err.message });
   }
 };
 
-// Add new bypass data
-exports.addBypass = async (req, res) => {
+// Add new fmioff data
+exports.addfmioff = async (req, res) => {
   try {
     const { name, price } = req.body;
-    const newBypass = new BypassData({ name, price });
-    await newBypass.save();
+    const newfmioff = new fmioffData({ name, price });
+    await newfmioff.save();
     
     res.status(201).json({ 
-      message: 'Data Bypass berhasil ditambahkan', 
-      data: newBypass 
+      message: 'Data fmioff berhasil ditambahkan', 
+      data: newfmioff 
     });
   } catch (err) {
     res.status(500).json({ 
-      message: 'Error saat menambahkan data Bypass', 
+      message: 'Error saat menambahkan data fmioff', 
       error: err.message 
     });
   }

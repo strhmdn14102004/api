@@ -6,7 +6,7 @@ const app = express();
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const bypassRoutes = require('./routes/bypassRoutes');
-const bypassRoutes = require('./routes/fmioffRoutes');
+const fmioffRoutes = require('./routes/fmioffRoutes');
 const imeiRoutes = require('./routes/imeiRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
