@@ -3,10 +3,12 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const ImeiData = require('../models/ImeiData');
 const BypassData = require('../models/BypassData');
+const BypassData = require('../models/FmioffData');
 const snap = require('../config/midtrans');
 const sendTelegramNotification = require('../config/telegram');
 const admin = require('../config/firebase');
 const authenticateToken = require('../middlewares/authMiddleware');
+const FmiOffData = require('../models/FmioffData');
 
 // Create new transaction
 exports.createTransaction = async (req, res) => {
@@ -21,9 +23,12 @@ exports.createTransaction = async (req, res) => {
     let item;
     if (itemType === 'imei') {
       item = await ImeiData.findById(itemId);
-    } else if (itemType === 'bypass') {
+    } else (itemType === 'bypass'); {
       item = await BypassData.findById(itemId);
     }
+  }  else if (itemType === 'FmiOff') {
+    item = await FmiOffData.findById(itemId);
+  }
     if (!item) {
       return res.status(404).json({ 
         message: 'Item tidak ditemukan' 
