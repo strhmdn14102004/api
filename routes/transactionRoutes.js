@@ -3,7 +3,6 @@ const router = express.Router();
 const transactionController = require('../controllers/transactionController');
 const authenticateToken = require('../middlewares/authMiddleware');
 
-// Pastikan nama fungsi sesuai dengan yang di-export dari controller
 router.post('/', authenticateToken, transactionController.createTransaction);
 router.post('/midtrans/webhook', transactionController.midtransWebhook);
 router.post('/update', authenticateToken, transactionController.updateTransactionStatus);

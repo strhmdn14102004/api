@@ -32,7 +32,7 @@ exports.createTransaction = async (req, res) => {
         item = await BypassData.findById(itemId);
         break;
       case 'fmi-off': // Handle FMI Off
-        item = await FmiOff.findById(itemId);
+        item = await fmioff.findById(itemId);
         break;
       default:
         return res.status(400).json({
