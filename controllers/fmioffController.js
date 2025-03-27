@@ -105,4 +105,25 @@ exports.deleteFmiOff = async (req, res) => {
       error: err.message
     });
   }
+
+  // Get all FMI Off data
+exports.getAllFmiOff = async (req, res) => {
+    try {
+      const fmiOffList = await FmiOff.find()
+        .select('-__v') // Exclude version key
+        .sort({ createdAt: -1 }); // Sort by newest first
+      
+      res.status(200).json({
+        success: true,
+        count: fmiOffList.length,
+        data: fmiOffList
+      });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: err.message
+      });
+    }
+  }
 };

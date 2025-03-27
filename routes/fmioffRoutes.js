@@ -15,4 +15,7 @@ router.put('/:id', authenticateToken, fmiOffController.updateFmiOff);
 // Delete FMI Off data (authenticated)
 router.delete('/:id', authenticateToken, fmiOffController.deleteFmiOff);
 
+// GET all FMI Off data
+router.get('/', authenticateToken, fmiOffController.getAllFmiOff);
+
 module.exports = router;
