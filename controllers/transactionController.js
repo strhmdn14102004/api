@@ -487,3 +487,76 @@ async function sendNotificationToUser(fcmToken, title, body) {
     throw err;
   }
 }
+
+// Approve transaction (Admin only)
+exports.approveTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminNotes } = req.body;
+
+    // Validasi input
+    if (!adminNotes) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin notes are required'
+      });
+    }
+
+    const transaction = await Transaction.findById(id);
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found'
+      });
+    }
+
+    // Update status dan catatan admin
+    transaction.status = 'success';
+    transaction.metadata = {
+      ...transaction.metadata,
+      adminNotes,
+      approvedAt: new Date(),
+      approvedBy: req.user.id
+    };
+
+    await transaction.save();
+
+    // Jika transaksi topup, update balance user
+    if (transaction.itemType === 'topup') {
+      await User.findByIdAndUpdate(
+        transaction.userId,
+        { $inc: { balance: transaction.amount } }
+      );
+
+      // Catat history balance
+      const user = await User.findById(transaction.userId);
+      const balanceHistory = new BalanceHistory({
+        userId: user._id,
+        transactionId: transaction._id,
+        amount: transaction.amount,
+        previousBalance: user.balance - transaction.amount,
+        newBalance: user.balance,
+        type: 'topup',
+        description: 'Top up approved by admin'
+      });
+      await balanceHistory.save();
+    }
+
+    // Kirim notifikasi
+    await this.sendTransactionNotifications(transaction);
+
+    res.status(200).json({
+      success: true,
+      message: 'Transaction approved successfully',
+      data: transaction
+    });
+
+  } catch (err) {
+    console.error('❌ Approve Error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve transaction',
+      error: err.message
+    });
+  }
+};
