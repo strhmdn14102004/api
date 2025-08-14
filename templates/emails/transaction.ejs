@@ -1,0 +1,84 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>Transaction <%= transaction.status.toUpperCase() %></title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { 
+            background-color: <%= transaction.status === 'success' ? '#4CAF50' : transaction.status === 'failed' ? '#F44336' : '#FFC107' %>; 
+            color: white; 
+            padding: 10px; 
+            text-align: center; 
+        }
+        .content { padding: 20px; }
+        .transaction-details { margin: 20px 0; }
+        .detail-row { display: flex; margin-bottom: 10px; }
+        .detail-label { font-weight: bold; width: 150px; }
+        .status {
+            font-weight: bold;
+            color: <%= transaction.status === 'success' ? '#4CAF50' : transaction.status === 'failed' ? '#F44336' : '#FFC107' %>;
+        
+        .footer { 
+            margin-top: 20px; 
+            font-size: 12px; 
+            color: #777; 
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Transaction <%= transaction.status.toUpperCase() %></h1>
+        </div>
+        <div class="content">
+            <p>Hello <%= user.fullName %>,</p>
+            <p>Your transaction has been updated:</p>
+            
+            <div class="transaction-details">
+                <div class="detail-row">
+                    <span class="detail-label">Transaction ID:</span>
+                    <span><%= transaction._id %></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Type:</span>
+                    <span><%= transaction.itemType === 'topup' ? 'Top Up' : 
+                          transaction.itemType === 'transfer' ? 'Transfer' : 'Purchase' %></span>
+                </div>
+                <% if (transaction.itemName) { %>
+                <div class="detail-row">
+                    <span class="detail-label">Item:</span>
+                    <span><%= transaction.itemName %></span>
+                </div>
+                <% } %>
+                <div class="detail-row">
+                    <span class="detail-label">Amount:</span>
+                    <span>Rp<%= transaction.amount.toLocaleString('id-ID') %></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Date:</span>
+                    <span><%= new Date(transaction.createdAt).toLocaleString('id-ID') %></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status:</span>
+                    <span class="status"><%= transaction.status.toUpperCase() %></span>
+                </div>
+            </div>
+            
+            <% if (transaction.status === 'success') { %>
+                <p>Your transaction was successful. Thank you for using our service!</p>
+            <% } else if (transaction.status === 'failed') { %>
+                <p>Your transaction failed. Please try again or contact support.</p>
+            <% } else { %>
+                <p>Your transaction is being processed. We'll notify you once it's completed.</p>
+            <% } %>
+            
+            <p>If you have any questions, please contact our support team.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; <%= new Date().getFullYear() %> Your App Name. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> -->

@@ -3,8 +3,10 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const ImeiData = require('../models/ImeiData');
 const BypassData = require('../models/BypassData');
+const BalanceHistory = require('../models/BalanceHistory');
 const snap = require('../config/midtrans');
 const sendTelegramNotification = require('../config/telegram');
+const { sendTransactionEmail } = require('../config/email');
 const admin = require('../config/firebase');
 const authenticateToken = require('../middlewares/authMiddleware');
 
@@ -12,9 +14,11 @@ const authenticateToken = require('../middlewares/authMiddleware');
 exports.createTransaction = async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
+    
     if (!itemType || !itemId) {
       return res.status(400).json({ 
-        message: 'Tipe item dan ID item wajib diisi' 
+        success: false,
+        message: 'Item type and ID are required' 
       });
     }
     
@@ -24,16 +28,19 @@ exports.createTransaction = async (req, res) => {
     } else if (itemType === 'bypass') {
       item = await BypassData.findById(itemId);
     }
+    
     if (!item) {
       return res.status(404).json({ 
-        message: 'Item tidak ditemukan' 
+        success: false,
+        message: 'Item not found' 
       });
     }
     
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ 
-        message: 'User tidak ditemukan' 
+        success: false,
+        message: 'User not found' 
       });
     }
     
@@ -42,12 +49,13 @@ exports.createTransaction = async (req, res) => {
       itemType,
       itemId,
       itemName: item.name,
-      price: item.price,
+      amount: item.price,
       status: 'pending'
     });
+    
     await transaction.save();
     
-    let parameter = {
+    const parameter = {
       transaction_details: {
         order_id: transaction._id.toString(),
         gross_amount: item.price
@@ -60,7 +68,7 @@ exports.createTransaction = async (req, res) => {
       }],
       customer_details: {
         first_name: user.fullName,
-        email: "testing@gmail.com",
+        email: user.email,
         phone: user.phoneNumber
       }
     };
@@ -71,30 +79,38 @@ exports.createTransaction = async (req, res) => {
 
     // Send Telegram notification
     const telegramMessage = `
-🛒 <b>TRANSAKSI BARU</b> 🛒
+🛒 <b>NEW TRANSACTION</b> 🛒
 ------------------------
-📌 <b>ID Transaksi:</b> ${transaction._id}
-👤 <b>Pelanggan:</b> ${user.fullName}
-📱 <b>No. HP:</b> ${user.phoneNumber}
-🛍️ <b>Produk:</b> ${item.name}
-💰 <b>Harga:</b> Rp${item.price.toLocaleString('id-ID')}
-📅 <b>Waktu:</b> ${new Date().toLocaleString('id-ID')}
-🔗 <b>Link Pembayaran:</b> <a href="${transactionData.redirect_url}">Klik disini</a>
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone:</b> ${user.phoneNumber}
+🛍️ <b>Product:</b> ${item.name}
+💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
 ------------------------
-<b>Status:</b> <i>Menunggu Pembayaran</i> ⏳
+<b>Status:</b> <i>Pending Payment</i> ⏳
     `;
     
     await sendTelegramNotification(telegramMessage);
 
+    // Send email notification
+    await sendTransactionEmail(user.email, transaction, user);
+
     res.status(201).json({ 
-      message: 'Transaksi berhasil dibuat',
-      paymentUrl: transaction.paymentUrl,
-      data: transaction
+      success: true,
+      message: 'Transaction created',
+      data: {
+        paymentUrl: transaction.paymentUrl,
+        transaction
+      }
     });
   } catch (err) {
-    console.error('❌ Midtrans Error:', err);
+    console.error('❌ Transaction Error:', err);
     res.status(500).json({ 
-      message: 'Gagal membuat payment link', 
+      success: false,
+      message: 'Failed to create transaction', 
       error: err.message 
     });
   }
@@ -103,94 +119,200 @@ exports.createTransaction = async (req, res) => {
 // Midtrans webhook handler
 exports.midtransWebhook = async (req, res) => {
   try {
-    const { order_id, transaction_status } = req.body;
+    const { order_id, transaction_status, fraud_status } = req.body;
     
     if (!order_id || !transaction_status) {
       return res.status(400).json({
         success: false,
-        message: 'Payload tidak lengkap'
+        message: 'Incomplete payload'
       });
     }
     
     if (!mongoose.Types.ObjectId.isValid(order_id)) {
       return res.status(400).json({
         success: false,
-        message: 'Format Order ID tidak valid'
+        message: 'Invalid transaction ID format'
       });
     }
     
     const transaction = await Transaction.findById(order_id)
-      .populate('userId', 'fcmToken fullName phoneNumber');
+      .populate('userId', 'fcmToken fullName email phoneNumber balance');
       
     if (!transaction) {
       return res.status(404).json({
         success: false,
-        message: 'Transaksi tidak ditemukan'
+        message: 'Transaction not found'
       });
     }
     
     let newStatus;
-    if (transaction_status === 'settlement') {
-      newStatus = 'sukses';
-    } else if (['cancel', 'expire', 'failure'].includes(transaction_status)) {
-      newStatus = 'gagal';
+    if (transaction_status === 'capture' || transaction_status === 'settlement') {
+      newStatus = 'success';
+    } else if (transaction_status === 'pending') {
+      newStatus = 'pending';
+    } else if (transaction_status === 'deny' || transaction_status === 'expire' || transaction_status === 'cancel') {
+      newStatus = 'failed';
     }
     
-    if (newStatus) {
+    if (newStatus && transaction.status !== newStatus) {
       transaction.status = newStatus;
       await transaction.save();
       
-      // Send Telegram notification
-      let statusEmoji = '';
-      if (newStatus === 'sukses') statusEmoji = '✅';
-      if (newStatus === 'gagal') statusEmoji = '❌';
-      
-      const telegramMessage = `
-📢 <b>UPDATE TRANSAKSI</b> 📢
-------------------------
-📌 <b>ID Transaksi:</b> ${transaction._id}
-👤 <b>Pelanggan:</b> ${transaction.userId.fullName}
-📱 <b>No. HP:</b> ${transaction.userId.phoneNumber}
-🛍️ <b>Produk:</b> ${transaction.itemName}
-💰 <b>Harga:</b> Rp${transaction.price.toLocaleString('id-ID')}
-📅 <b>Waktu:</b> ${new Date(transaction.createdAt).toLocaleString('id-ID')}
-------------------------
-<b>Status Terbaru:</b> <i>${newStatus.toUpperCase()}</i> ${statusEmoji}
-      `;
-      
-      await sendTelegramNotification(telegramMessage);
-    }
-    
-    if (newStatus === 'sukses' && transaction.userId?.fcmToken) {
-      try {
-        await sendNotificationToUser(
-          transaction.userId.fcmToken,
-          'Pembayaran Berhasil',
-          `Pembelian ${transaction.itemName} berhasil. Cek riwayat pembelian dimenu histori`
-        );
-      } catch (notifError) {
-        console.error('❌ Error mengirim notifikasi:', notifError);
+      // Update user balance if transaction is successful
+      if (newStatus === 'success' && transaction.itemType === 'topup') {
+        const user = await User.findById(transaction.userId);
+        user.balance += transaction.amount;
+        await user.save();
+        
+        // Record balance history
+        const balanceHistory = new BalanceHistory({
+          userId: user._id,
+          transactionId: transaction._id,
+          amount: transaction.amount,
+          previousBalance: user.balance - transaction.amount,
+          newBalance: user.balance,
+          type: 'topup',
+          description: 'Top up balance'
+        });
+        
+        await balanceHistory.save();
       }
+      
+      // Send notifications
+      await this.sendTransactionNotifications(transaction);
     }
     
     res.status(200).json({
       success: true,
-      message: 'Status transaksi diperbarui',
+      message: 'Webhook processed',
       data: {
         transactionId: transaction._id,
-        newStatus: transaction.status
+        status: transaction.status
       }
     });
-
   } catch (err) {
     console.error('❌ Webhook Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Error memproses webhook',
+      message: 'Failed to process webhook',
       error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 };
+
+// Helper method to send transaction notifications
+exports.sendTransactionNotifications = async (transaction) => {
+  try {
+    const user = transaction.userId;
+    let statusEmoji = '';
+    let statusText = '';
+    
+    switch (transaction.status) {
+      case 'success':
+        statusEmoji = '✅';
+        statusText = 'SUCCESS';
+        break;
+      case 'failed':
+        statusEmoji = '❌';
+        statusText = 'FAILED';
+        break;
+      case 'pending':
+        statusEmoji = '⏳';
+        statusText = 'PENDING';
+        break;
+      default:
+        statusEmoji = '';
+        statusText = transaction.status.toUpperCase();
+    }
+    
+    // Telegram notification
+    const telegramMessage = `
+📢 <b>TRANSACTION UPDATE</b> 📢
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone:</b> ${user.phoneNumber}
+🛍️ <b>Product:</b> ${transaction.itemName || 'Top Up'}
+💰 <b>Amount:</b> Rp${transaction.amount.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date(transaction.createdAt).toLocaleString('id-ID')}
+------------------------
+<b>New Status:</b> <i>${statusText}</i> ${statusEmoji}
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+    
+    // Email notification
+    await sendTransactionEmail(user.email, transaction, user);
+    
+    // Push notification if available
+    if (user.fcmToken && transaction.status !== 'pending') {
+      let notificationTitle = '';
+      let notificationBody = '';
+      
+      if (transaction.status === 'success') {
+        notificationTitle = 'Payment Successful';
+        notificationBody = `Your ${transaction.itemName || 'top up'} transaction was successful`;
+      } else if (transaction.status === 'failed') {
+        notificationTitle = 'Payment Failed';
+        notificationBody = `Your ${transaction.itemName || 'top up'} transaction failed`;
+      }
+      
+      if (notificationTitle && notificationBody) {
+        await sendNotificationToUser(
+          user.fcmToken,
+          notificationTitle,
+          notificationBody
+        );
+      }
+    }
+  } catch (error) {
+    console.error('❌ Notification Error:', error);
+  }
+};
+
+// Get transaction notifications
+exports.getNotifications = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    
+    const transactions = await Transaction.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    
+    const count = await Transaction.countDocuments({ userId: req.user.id });
+    
+    const notifications = transactions.map(tx => ({
+      id: tx._id,
+      type: tx.itemType === 'topup' ? 'Top Up' : 
+            tx.itemType === 'transfer' ? 'Transfer' : 'Purchase',
+      amount: tx.amount,
+      status: tx.status,
+      date: tx.createdAt,
+      itemName: tx.itemName,
+      metadata: tx.metadata
+    }));
+    
+    res.status(200).json({
+      success: true,
+      data: notifications,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get notifications',
+      error: err.message
+    });
+  }
+};
+
 
 // Update transaction status
 exports.updateTransactionStatus = async (req, res) => {
