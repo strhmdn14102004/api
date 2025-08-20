@@ -31,6 +31,11 @@ const transactionSchema = new mongoose.Schema({
   paymentUrl: { 
     type: String 
   },
+  paymentMethod: {
+    type: String,
+    enum: ['midtrans', 'manual', 'balance'],
+    default: 'midtrans'
+  },
   recipientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -38,13 +43,26 @@ const transactionSchema = new mongoose.Schema({
   metadata: {
     type: mongoose.Schema.Types.Mixed
   },
+  midtransResponse: {
+    type: mongoose.Schema.Types.Mixed
+  },
   createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  updatedAt: { 
     type: Date, 
     default: Date.now 
   }
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
+});
+
+// Update the updatedAt field before saving
+transactionSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 // Virtual for transaction type
@@ -54,5 +72,10 @@ transactionSchema.virtual('type').get(function() {
   if (this.itemType === 'transfer') return 'Transfer';
   return 'Product Purchase';
 });
+
+// Index for better performance
+transactionSchema.index({ userId: 1, createdAt: -1 });
+transactionSchema.index({ status: 1 });
+transactionSchema.index({ itemType: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

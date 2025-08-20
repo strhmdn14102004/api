@@ -49,7 +49,7 @@ exports.register = async (req, res) => {
     await newUser.save();
 
     // Send OTP email
-    await sendOtpEmail(email, otpCode);
+    await sendOtpEmail(email, otpCode,fullName);
 
     res.status(201).json({
       success: true,
@@ -158,7 +158,7 @@ exports.resendOtp = async (req, res) => {
     };
 
     await user.save();
-    await sendOtpEmail(email, otpCode);
+    await sendOtpEmail(email, otpCode,user.fullName);
 
     res.status(200).json({
       success: true,
@@ -275,7 +275,7 @@ exports.forgotPassword = async (req, res) => {
     };
 
     await user.save();
-    await sendResetPasswordEmail(email, resetLink);
+    await sendResetPasswordEmail(email, resetLink,user.fullName);
 
     res.status(200).json({
       success: true,

@@ -19,6 +19,7 @@ const imeiRoutes = require('./routes/imeiRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const balanceRoutes = require('./routes/balanceRoutes');
+const adminRoutes = require('./routes/adminRoutes'); // Tambahkan ini
 
 // Middleware
 app.use(cors());
@@ -48,12 +49,23 @@ app.use('/api/imei', imeiRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/balance', balanceRoutes);
+app.use('/api/admin', adminRoutes); // Tambahkan ini
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint not found'
   });
 });
 
@@ -72,4 +84,5 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
   console.log('⏰ Server Time:', new Date().toLocaleString());
+  console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 });
