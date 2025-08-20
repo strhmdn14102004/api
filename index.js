@@ -55,17 +55,7 @@ app.use('/api/admin', adminRoutes); // Tambahkan ini
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found'
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -84,5 +74,4 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
   console.log('⏰ Server Time:', new Date().toLocaleString());
-  console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 });
