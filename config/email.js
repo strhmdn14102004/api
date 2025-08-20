@@ -28,7 +28,7 @@ const sendEmail = async (to, subject, template, data) => {
     console.log(`✅ Email sent to ${to}`);
   } catch (error) {
     console.error('❌ Email sending error:', error);
-    // Don't throw error to avoid breaking the main flow
+    throw error;
   }
 };
 

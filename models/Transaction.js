@@ -41,20 +41,10 @@ const transactionSchema = new mongoose.Schema({
   createdAt: { 
     type: Date, 
     default: Date.now 
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
   }
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
-});
-
-// Update the updatedAt field before saving
-transactionSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
 });
 
 // Virtual for transaction type
@@ -64,10 +54,5 @@ transactionSchema.virtual('type').get(function() {
   if (this.itemType === 'transfer') return 'Transfer';
   return 'Product Purchase';
 });
-
-// Index for better performance
-transactionSchema.index({ userId: 1, createdAt: -1 });
-transactionSchema.index({ status: 1 });
-transactionSchema.index({ createdAt: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);
