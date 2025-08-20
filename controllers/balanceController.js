@@ -1,7 +1,9 @@
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const BalanceHistory = require('../models/BalanceHistory');
-const { sendEmail } = require('../config/email');
+const snap = require('../config/midtrans');
+const sendTelegramNotification = require('../config/telegram');
+const { sendTransactionEmail } = require('../config/email');
 const authenticateToken = require('../middlewares/authMiddleware');
 
 // Get user balance
@@ -23,7 +25,7 @@ exports.getBalance = async (req, res) => {
   }
 };
 
-// Top up balance
+// Top up balance with Midtrans payment
 exports.topUp = async (req, res) => {
   try {
     const { amount } = req.body;
@@ -35,6 +37,15 @@ exports.topUp = async (req, res) => {
       });
     }
 
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Create transaction
     const transaction = new Transaction({
       userId: req.user.id,
       itemType: 'topup',
@@ -44,15 +55,60 @@ exports.topUp = async (req, res) => {
 
     await transaction.save();
 
+    // Create Midtrans payment
+    const parameter = {
+      transaction_details: {
+        order_id: transaction._id.toString(),
+        gross_amount: amount
+      },
+      customer_details: {
+        first_name: user.fullName,
+        email: user.email,
+        phone: user.phoneNumber
+      },
+      item_details: [{
+        id: 'topup',
+        name: 'Top Up Balance',
+        price: amount,
+        quantity: 1
+      }]
+    };
+
+    const transactionData = await snap.createTransaction(parameter);
+    transaction.paymentUrl = transactionData.redirect_url;
+    await transaction.save();
+
+    // Send Telegram notification
+    const telegramMessage = `
+💰 <b>TOP UP REQUEST</b> 💰
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone:</b> ${user.phoneNumber}
+💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here to pay</a>
+------------------------
+<b>Status:</b> <i>Pending Payment</i> ⏳
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+
+    // Send email notification
+    await sendTransactionEmail(user.email, transaction, user);
+
     res.status(201).json({
       success: true,
       message: 'Top up request created',
       data: {
         transactionId: transaction._id,
-        amount
+        amount,
+        paymentUrl: transactionData.redirect_url
       }
     });
   } catch (err) {
+    console.error('❌ Top Up Error:', err);
     res.status(500).json({
       success: false,
       message: 'Error processing top up',
@@ -81,10 +137,7 @@ exports.withdraw = async (req, res) => {
       });
     }
 
-    // Deduct balance immediately for withdrawal
-    user.balance -= amount;
-    await user.save();
-
+    // Create withdrawal transaction
     const transaction = new Transaction({
       userId: req.user.id,
       itemType: 'withdrawal',
@@ -99,17 +152,35 @@ exports.withdraw = async (req, res) => {
       userId: req.user.id,
       transactionId: transaction._id,
       amount: -amount,
-      previousBalance: user.balance + amount,
+      previousBalance: user.balance,
       newBalance: user.balance,
       type: 'withdrawal',
-      description: 'Withdrawal request'
+      description: 'Withdrawal request - pending approval'
     });
 
     await balanceHistory.save();
 
+    // Send Telegram notification for admin approval
+    const telegramMessage = `
+💸 <b>WITHDRAWAL REQUEST</b> 💸
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone:</b> ${user.phoneNumber}
+💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+💰 <b>Current Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+------------------------
+<b>Status:</b> <i>Pending Approval</i> ⏳
+<b>Action Required:</b> Manual approval needed
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+
     res.status(201).json({
       success: true,
-      message: 'Withdrawal request created',
+      message: 'Withdrawal request created - awaiting admin approval',
       data: {
         transactionId: transaction._id,
         amount
@@ -174,7 +245,8 @@ exports.transfer = async (req, res) => {
       recipientId: recipient._id,
       metadata: {
         notes,
-        recipientName: recipient.fullName
+        recipientName: recipient.fullName,
+        recipientPhone: recipient.phoneNumber
       }
     });
 
@@ -202,6 +274,32 @@ exports.transfer = async (req, res) => {
     });
 
     await Promise.all([senderHistory.save(), recipientHistory.save()]);
+
+    // Send Telegram notification
+    const telegramMessage = `
+🔄 <b>BALANCE TRANSFER</b> 🔄
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Sender:</b> ${sender.fullName}
+📧 <b>Sender Email:</b> ${sender.email}
+📱 <b>Sender Phone:</b> ${sender.phoneNumber}
+👤 <b>Recipient:</b> ${recipient.fullName}
+📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
+💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+📝 <b>Notes:</b> ${notes || 'No notes'}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+------------------------
+<b>Status:</b> <i>Completed</i> ✅
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+
+    // Send email notifications to both users
+    await sendTransactionEmail(sender.email, transaction, sender);
+    await sendTransactionEmail(recipient.email, {
+      ...transaction.toObject(),
+      itemName: `Transfer from ${sender.username}`
+    }, recipient);
 
     res.status(201).json({
       success: true,
