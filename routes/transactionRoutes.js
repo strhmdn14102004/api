@@ -9,5 +9,6 @@ router.post('/update', authenticateToken, transactionController.updateTransactio
 router.get('/', authenticateToken, transactionController.getTransactionHistory);
 router.get('/:id', authenticateToken, transactionController.getTransactionDetails);
 router.put('/:id/approve', authenticateToken, transactionController.approveTransaction);
+router.post('/direct', authenticateToken, transactionController.directPurchase);
 
 module.exports = router;

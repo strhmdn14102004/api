@@ -11,6 +11,7 @@ const admin = require('../config/firebase');
 const authenticateToken = require('../middlewares/authMiddleware');
 
 // Create new transaction
+// Create new transaction - PERBAIKAN
 exports.createTransaction = async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
@@ -41,6 +42,19 @@ exports.createTransaction = async (req, res) => {
       return res.status(404).json({ 
         success: false,
         message: 'User not found' 
+      });
+    }
+    
+    // Untuk produk (bukan topup), cek apakah saldo cukup
+    if ((itemType === 'imei' || itemType === 'bypass') && user.balance < item.price) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Insufficient balance',
+        data: {
+          required: item.price,
+          current: user.balance,
+          deficit: item.price - user.balance
+        }
       });
     }
     
@@ -87,6 +101,7 @@ exports.createTransaction = async (req, res) => {
 📱 <b>Phone Number:</b> ${user.phoneNumber}
 🛍️ <b>Product:</b> ${item.name}
 💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
+💳 <b>Current Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
 📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
 🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
 ------------------------
@@ -103,7 +118,8 @@ exports.createTransaction = async (req, res) => {
       message: 'Transaction created',
       data: {
         paymentUrl: transaction.paymentUrl,
-        transaction
+        transaction,
+        userBalance: user.balance
       }
     });
   } catch (err) {
@@ -111,6 +127,126 @@ exports.createTransaction = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Failed to create transaction', 
+      error: err.message 
+    });
+  }
+};
+
+// Direct purchase without Midtrans (gunakan saldo langsung)
+exports.directPurchase = async (req, res) => {
+  try {
+    const { itemType, itemId } = req.body;
+    
+    if (!itemType || !itemId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Item type and ID are required' 
+      });
+    }
+    
+    let item;
+    if (itemType === 'imei') {
+      item = await ImeiData.findById(itemId);
+    } else if (itemType === 'bypass') {
+      item = await BypassData.findById(itemId);
+    } else {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid item type for direct purchase' 
+      });
+    }
+    
+    if (!item) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Item not found' 
+      });
+    }
+    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+    
+    // Cek apakah saldo cukup
+    if (user.balance < item.price) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Insufficient balance',
+        data: {
+          required: item.price,
+          current: user.balance,
+          deficit: item.price - user.balance
+        }
+      });
+    }
+    
+    // Kurangi saldo user
+    user.balance -= item.price;
+    await user.save();
+    
+    // Buat transaksi dengan status success
+    const transaction = new Transaction({
+      userId: req.user.id,
+      itemType,
+      itemId,
+      itemName: item.name,
+      amount: item.price,
+      status: 'success'
+    });
+    
+    await transaction.save();
+    
+    // Record balance history
+    const balanceHistory = new BalanceHistory({
+      userId: user._id,
+      transactionId: transaction._id,
+      amount: -item.price,
+      previousBalance: user.balance + item.price,
+      newBalance: user.balance,
+      type: 'purchase',
+      description: `Direct purchase of ${itemType} - ${item.name}`
+    });
+    
+    await balanceHistory.save();
+
+    // Send Telegram notification
+    const telegramMessage = `
+🛒 <b>DIRECT PURCHASE</b> 🛒
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone Number:</b> ${user.phoneNumber}
+🛍️ <b>Product:</b> ${item.name}
+💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
+💳 <b>New Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+------------------------
+<b>Status:</b> <i>Success</i> ✅
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+
+    // Send email notification
+    await sendTransactionEmail(user.email, transaction, user);
+
+    res.status(201).json({ 
+      success: true,
+      message: 'Direct purchase successful',
+      data: {
+        transaction,
+        newBalance: user.balance
+      }
+    });
+  } catch (err) {
+    console.error('❌ Direct Purchase Error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process direct purchase', 
       error: err.message 
     });
   }
@@ -158,28 +294,57 @@ exports.midtransWebhook = async (req, res) => {
       transaction.status = newStatus;
       await transaction.save();
       
-      // Update user balance if transaction is successful
-      if (newStatus === 'success' && transaction.itemType === 'topup') {
-        const user = await User.findById(transaction.userId);
-        user.balance += transaction.amount;
-        await user.save();
-        
-        // Record balance history
-        const balanceHistory = new BalanceHistory({
-          userId: user._id,
-          transactionId: transaction._id,
-          amount: transaction.amount,
-          previousBalance: user.balance - transaction.amount,
-          newBalance: user.balance,
-          type: 'topup',
-          description: 'Top up balance'
-        });
-        
-        await balanceHistory.save();
-        
-        // Update the transaction object with the latest user data
-        transaction.userId = user;
+      const user = await User.findById(transaction.userId);
+      
+      // Update user balance based on transaction type
+      if (newStatus === 'success') {
+        if (transaction.itemType === 'topup') {
+          // Top up - tambah saldo
+          user.balance += transaction.amount;
+          await user.save();
+          
+          // Record balance history untuk topup
+          const balanceHistory = new BalanceHistory({
+            userId: user._id,
+            transactionId: transaction._id,
+            amount: transaction.amount,
+            previousBalance: user.balance - transaction.amount,
+            newBalance: user.balance,
+            type: 'topup',
+            description: 'Top up balance'
+          });
+          await balanceHistory.save();
+          
+        } else if (transaction.itemType === 'imei' || transaction.itemType === 'bypass') {
+          // Pembelian produk - kurangi saldo
+          if (user.balance >= transaction.amount) {
+            user.balance -= transaction.amount;
+            await user.save();
+            
+            // Record balance history untuk pembelian
+            const balanceHistory = new BalanceHistory({
+              userId: user._id,
+              transactionId: transaction._id,
+              amount: -transaction.amount,
+              previousBalance: user.balance + transaction.amount,
+              newBalance: user.balance,
+              type: 'purchase',
+              description: `Purchase ${transaction.itemType} - ${transaction.itemName}`
+            });
+            await balanceHistory.save();
+          } else {
+            // Jika saldo tidak cukup, ubah status menjadi failed
+            transaction.status = 'failed';
+            await transaction.save();
+            newStatus = 'failed';
+            
+            console.log(`❌ Insufficient balance for purchase: User ${user._id}, Needed: ${transaction.amount}, Balance: ${user.balance}`);
+          }
+        }
       }
+      
+      // Update the transaction object with the latest user data
+      transaction.userId = user;
       
       // Send notifications
       await this.sendTransactionNotifications(transaction);
