@@ -38,7 +38,7 @@ module.exports = {
     await sendEmail(email, 'Your OTP Code', 'otp', { otpCode });
   },
   sendTransactionEmail: async (email, transaction, user) => {
-    await sendEmail(email, `Transaction ${transaction.status}`, 'transaction', { transaction, user });
+    await sendEmail(email, `Transaction ${transaction.status} - ${transaction._id}`, 'transaction', { transaction, user });
   },
   sendResetPasswordEmail: async (email, resetLink) => {
     await sendEmail(email, 'Password Reset Request', 'reset-password', { resetLink });

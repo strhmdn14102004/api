@@ -20,6 +20,7 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
         }
         
+        .header {
             /* background-color: 
                 <% if (transaction.status === 'success') { %>
                     #4CAF50;
@@ -27,11 +28,11 @@
                     #F44336;
                 <% } else { %>
                     #FFC107;
-                <% } %>
+                <% } %>;
             color: white;
             padding: 25px;
             text-align: center;
-        } */
+        } */}
         .header h1 {
             margin: 0;
             font-size: 24px;
@@ -152,10 +153,24 @@
                 </div>
                 <% } %>
                 
+                <% if (transaction.metadata && transaction.metadata.recipientPhone) { %>
+                <div class="detail-row">
+                    <span class="detail-label">Recipient Phone:</span>
+                    <span><%= transaction.metadata.recipientPhone %></span>
+                </div>
+                <% } %>
+                
                 <% if (transaction.metadata && transaction.metadata.notes) { %>
                 <div class="detail-row">
                     <span class="detail-label">Notes:</span>
                     <span><%= transaction.metadata.notes %></span>
+                </div>
+                <% } %>
+                
+                <% if (transaction.metadata && transaction.metadata.adminNotes) { %>
+                <div class="detail-row">
+                    <span class="detail-label">Admin Notes:</span>
+                    <span><%= transaction.metadata.adminNotes %></span>
                 </div>
                 <% } %>
             </div>

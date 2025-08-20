@@ -14,7 +14,8 @@ async function sendTelegramNotification(message) {
     const response = await axios.post(url, {
       chat_id: TELEGRAM_CHAT_ID,
       text: message,
-      parse_mode: 'HTML'
+      parse_mode: 'HTML',
+      disable_web_page_preview: true
     });
 
     console.log('📤 Telegram notification sent:', response.data);

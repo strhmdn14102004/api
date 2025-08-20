@@ -84,13 +84,13 @@ exports.createTransaction = async (req, res) => {
 📌 <b>Transaction ID:</b> ${transaction._id}
 👤 <b>Customer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
-📱 <b>Phone:</b> ${user.phoneNumber}
+📱 <b>Phone Number:</b> ${user.phoneNumber}
 🛍️ <b>Product:</b> ${item.name}
 💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
 📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
 🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
 ------------------------
-<b>Status:</b> <i>Pending Payment</i> ⏳
+<b>Status:</b> <i>Waiting for payment</i> ⏳
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -313,7 +313,6 @@ exports.getNotifications = async (req, res) => {
   }
 };
 
-
 // Update transaction status
 exports.updateTransactionStatus = async (req, res) => {
   try {
@@ -333,6 +332,9 @@ exports.updateTransactionStatus = async (req, res) => {
     
     transaction.status = status;
     await transaction.save();
+    
+    // Send notifications
+    await this.sendTransactionNotifications(transaction);
     
     res.status(200).json({ 
       message: 'Status transaksi berhasil diperbarui', 
@@ -394,10 +396,10 @@ exports.getTransactionDetails = async (req, res) => {
       case 'pending':
         statusDisplay = 'Menunggu Pembayaran ⏳';
         break;
-      case 'sukses':
+      case 'success':
         statusDisplay = 'Sukses ✅';
         break;
-      case 'gagal':
+      case 'failed':
         statusDisplay = 'Gagal ❌';
         break;
       default:
@@ -413,7 +415,7 @@ exports.getTransactionDetails = async (req, res) => {
           'Pelanggan': transaction.userId.fullName,
           'No. HP': transaction.userId.phoneNumber,
           'Produk': transaction.itemName,
-          'Harga': `Rp${transaction.price.toLocaleString('id-ID')}`,
+          'Harga': `Rp${transaction.amount.toLocaleString('id-ID')}`,
           'Waktu': transaction.createdAt.toLocaleString('id-ID'),
           '------------------------': '------------------------',
           'Status Terbaru': statusDisplay
