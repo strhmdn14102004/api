@@ -5,10 +5,9 @@ const authenticateToken = require('../middlewares/authMiddleware');
 
 router.post('/', authenticateToken, transactionController.createTransaction);
 router.post('/midtrans/webhook', transactionController.midtransWebhook);
-router.post('/update-status', authenticateToken, transactionController.updateTransactionStatus);
+router.post('/update', authenticateToken, transactionController.updateTransactionStatus);
 router.get('/', authenticateToken, transactionController.getTransactionHistory);
 router.get('/:id', authenticateToken, transactionController.getTransactionDetails);
 router.put('/:id/approve', authenticateToken, transactionController.approveTransaction);
-router.get('/notifications/history', authenticateToken, transactionController.getNotifications);
 
 module.exports = router;

@@ -19,7 +19,6 @@ const imeiRoutes = require('./routes/imeiRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const balanceRoutes = require('./routes/balanceRoutes');
-const adminRoutes = require('./routes/adminRoutes'); // Tambahkan ini
 
 // Middleware
 app.use(cors());
@@ -49,7 +48,6 @@ app.use('/api/imei', imeiRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/balance', balanceRoutes);
-app.use('/api/admin', adminRoutes); // Tambahkan ini
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
