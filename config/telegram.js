@@ -10,18 +10,25 @@ async function sendTelegramNotification(message) {
       return;
     }
 
+    // Ensure message is not too long for Telegram (max 4096 characters)
+    if (message.length > 4096) {
+      message = message.substring(0, 4090) + '...';
+    }
+
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const response = await axios.post(url, {
       chat_id: TELEGRAM_CHAT_ID,
       text: message,
-      parse_mode: 'HTML'
+      parse_mode: 'HTML',
+      disable_web_page_preview: true
     });
 
-    console.log('📤 Telegram notification sent:', response.data);
+    console.log('📤 Telegram notification sent successfully');
     return response.data;
   } catch (error) {
     console.error('❌ Failed to send Telegram notification:', error.response?.data || error.message);
-    throw error;
+    // Don't throw error to avoid breaking the main flow
+    return null;
   }
 }
 

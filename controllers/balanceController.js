@@ -1,8 +1,10 @@
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const BalanceHistory = require('../models/BalanceHistory');
-const { sendEmail } = require('../config/email');
-const authenticateToken = require('../middlewares/authMiddleware');
+const snap = require('../config/midtrans');
+const sendTelegramNotification = require('../config/telegram');
+const { sendTransactionEmail } = require('../config/email');
+const admin = require('../config/firebase');
 
 // Get user balance
 exports.getBalance = async (req, res) => {
@@ -23,7 +25,7 @@ exports.getBalance = async (req, res) => {
   }
 };
 
-// Top up balance
+// Top up balance with Midtrans
 exports.topUp = async (req, res) => {
   try {
     const { amount } = req.body;
@@ -32,6 +34,14 @@ exports.topUp = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Amount must be greater than 0'
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
 
@@ -44,15 +54,60 @@ exports.topUp = async (req, res) => {
 
     await transaction.save();
 
+    // Create Midtrans payment
+    const parameter = {
+      transaction_details: {
+        order_id: transaction._id.toString(),
+        gross_amount: amount
+      },
+      customer_details: {
+        first_name: user.fullName,
+        email: user.email,
+        phone: user.phoneNumber
+      },
+      item_details: [{
+        id: 'topup',
+        name: 'Top Up Balance',
+        price: amount,
+        quantity: 1
+      }]
+    };
+
+    const transactionData = await snap.createTransaction(parameter);
+    transaction.paymentUrl = transactionData.redirect_url;
+    await transaction.save();
+
+    // Send Telegram notification
+    const telegramMessage = `
+💳 <b>TOP UP REQUEST</b> 💳
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone:</b> ${user.phoneNumber}
+💰 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here to pay</a>
+------------------------
+<b>Status:</b> <i>Pending payment</i> ⏳
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+
+    // Send email notification
+    await sendTransactionEmail(user.email, transaction, user);
+
     res.status(201).json({
       success: true,
       message: 'Top up request created',
       data: {
         transactionId: transaction._id,
-        amount
+        amount,
+        paymentUrl: transactionData.redirect_url
       }
     });
   } catch (err) {
+    console.error('❌ Top Up Error:', err);
     res.status(500).json({
       success: false,
       message: 'Error processing top up',
@@ -106,6 +161,23 @@ exports.withdraw = async (req, res) => {
     });
 
     await balanceHistory.save();
+
+    // Send notifications
+    const telegramMessage = `
+🏧 <b>WITHDRAWAL REQUEST</b> 🏧
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Customer:</b> ${user.fullName}
+📧 <b>Email:</b> ${user.email}
+📱 <b>Phone:</b> ${user.phoneNumber}
+💰 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+------------------------
+<b>Status:</b> <i>Pending approval</i> ⏳
+    `;
+    
+    await sendTelegramNotification(telegramMessage);
+    await sendTransactionEmail(user.email, transaction, user);
 
     res.status(201).json({
       success: true,
@@ -174,7 +246,8 @@ exports.transfer = async (req, res) => {
       recipientId: recipient._id,
       metadata: {
         notes,
-        recipientName: recipient.fullName
+        recipientName: recipient.fullName,
+        recipientUsername: recipient.username
       }
     });
 
@@ -202,6 +275,55 @@ exports.transfer = async (req, res) => {
     });
 
     await Promise.all([senderHistory.save(), recipientHistory.save()]);
+
+    // Send notifications to both users
+    const senderTelegramMessage = `
+➡️ <b>TRANSFER SENT</b> ➡️
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Recipient:</b> ${recipient.fullName} (@${recipient.username})
+💰 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+📝 <b>Notes:</b> ${notes || 'No notes'}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+💼 <b>New Balance:</b> Rp${sender.balance.toLocaleString('id-ID')}
+------------------------
+<b>Status:</b> <i>Success</i> ✅
+    `;
+
+    const recipientTelegramMessage = `
+⬅️ <b>TRANSFER RECEIVED</b> ⬅️
+------------------------
+📌 <b>Transaction ID:</b> ${transaction._id}
+👤 <b>Sender:</b> ${sender.fullName} (@${sender.username})
+💰 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
+📝 <b>Notes:</b> ${notes || 'No notes'}
+📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+💼 <b>New Balance:</b> Rp${recipient.balance.toLocaleString('id-ID')}
+------------------------
+<b>Status:</b> <i>Success</i> ✅
+    `;
+
+    // Send notifications to sender
+    if (sender.fcmToken) {
+      await sendNotificationToUser(
+        sender.fcmToken,
+        'Transfer Successful',
+        `You sent Rp${amount.toLocaleString('id-ID')} to ${recipient.username}`
+      );
+    }
+
+    // Send notifications to recipient
+    if (recipient.fcmToken) {
+      await sendNotificationToUser(
+        recipient.fcmToken,
+        'Transfer Received',
+        `You received Rp${amount.toLocaleString('id-ID')} from ${sender.username}`
+      );
+    }
+
+    await sendTelegramNotification(senderTelegramMessage);
+    await sendTransactionEmail(sender.email, transaction, sender);
+    await sendTransactionEmail(recipient.email, transaction, recipient);
 
     res.status(201).json({
       success: true,
@@ -255,3 +377,58 @@ exports.getHistory = async (req, res) => {
     });
   }
 };
+
+// Helper function to send FCM notification
+async function sendNotificationToUser(fcmToken, title, body) {
+  try {
+    if (!fcmToken) {
+      console.log('❌ No FCM token available');
+      return;
+    }
+    
+    const message = {
+      notification: { 
+        title,
+        body
+      },
+      token: fcmToken,
+      android: {
+        priority: 'high'
+      },
+      apns: {
+        headers: {
+          'apns-priority': '10'
+        },
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1
+          }
+        }
+      }
+    };
+    
+    const response = await admin.messaging().send(message)
+      .then((response) => {
+        console.log('✅ Notification sent:', response);
+        return response;
+      })
+      .catch((error) => {
+        console.error('❌ Delivery error:', error);
+        throw error;
+      });
+      
+    return response;
+  } catch (err) {
+    console.error('❌ Failed to send notification:', err);   
+    if (err.code === 'messaging/invalid-registration-token' || 
+        err.code === 'messaging/registration-token-not-registered') {
+      await User.updateOne(
+        { fcmToken: fcmToken },
+        { $unset: { fcmToken: 1 } }
+      );
+      console.log('🗑️ Invalid FCM token removed from database');
+    }
+    throw err;
+  }
+}
