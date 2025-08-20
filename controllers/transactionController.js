@@ -176,6 +176,9 @@ exports.midtransWebhook = async (req, res) => {
         });
         
         await balanceHistory.save();
+        
+        // Update the transaction object with the latest user data
+        transaction.userId = user;
       }
       
       // Send notifications
@@ -203,7 +206,14 @@ exports.midtransWebhook = async (req, res) => {
 // Helper method to send transaction notifications
 exports.sendTransactionNotifications = async (transaction) => {
   try {
-    const user = transaction.userId;
+    // Pastikan user data terisi dengan benar
+    let user = transaction.userId;
+    
+    // Jika user hanya berisi ObjectId, populate data user
+    if (typeof user === 'string' || (user && !user.email)) {
+      user = await User.findById(user).select('fullName email phoneNumber balance fcmToken');
+    }
+    
     let statusEmoji = '';
     let statusText = '';
     
@@ -230,9 +240,9 @@ exports.sendTransactionNotifications = async (transaction) => {
 📢 <b>TRANSACTION UPDATE</b> 📢
 ------------------------
 📌 <b>Transaction ID:</b> ${transaction._id}
-👤 <b>Customer:</b> ${user.fullName}
-📧 <b>Email:</b> ${user.email}
-📱 <b>Phone:</b> ${user.phoneNumber}
+👤 <b>Customer:</b> ${user.fullName || 'Unknown'}
+📧 <b>Email:</b> ${user.email || 'No email'}
+📱 <b>Phone:</b> ${user.phoneNumber || 'No phone'}
 🛍️ <b>Product:</b> ${transaction.itemName || 'Top Up'}
 💰 <b>Amount:</b> Rp${transaction.amount.toLocaleString('id-ID')}
 📅 <b>Time:</b> ${new Date(transaction.createdAt).toLocaleString('id-ID')}
@@ -242,8 +252,13 @@ exports.sendTransactionNotifications = async (transaction) => {
     
     await sendTelegramNotification(telegramMessage);
     
-    // Email notification
-    await sendTransactionEmail(user.email, transaction, user);
+    // Email notification - pastikan user object lengkap
+    await sendTransactionEmail(user.email, transaction, {
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      balance: user.balance || 0
+    });
     
     // Push notification if available
     if (user.fcmToken && transaction.status !== 'pending') {

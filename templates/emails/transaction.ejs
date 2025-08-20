@@ -21,7 +21,7 @@
         }
         
         .header {
-            /* background-color: 
+            background-color: 
                 <% if (transaction.status === 'success') { %>
                     #4CAF50;
                 <% } else if (transaction.status === 'failed') { %>
@@ -32,7 +32,7 @@
             color: white;
             padding: 25px;
             text-align: center;
-        } */}
+        }
         .header h1 {
             margin: 0;
             font-size: 24px;
@@ -183,7 +183,7 @@
                     'product has been processed' %>.</p>
                 
                 <% if (transaction.itemType === 'topup' || transaction.itemType === 'transfer') { %>
-                <p>Your current balance: <strong>Rp<%= user.balance.toLocaleString('id-ID') %></strong></p>
+                <p>Your current balance: <strong>Rp<%= (user.balance || 0).toLocaleString('id-ID') %></strong></p>
                 <% } %>
                 
             <% } else if (transaction.status === 'failed') { %>
