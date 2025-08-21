@@ -5,8 +5,8 @@ const snap = require('../config/midtrans');
 const sendTelegramNotification = require('../config/telegram');
 const { sendTransactionEmail } = require('../config/email');
 const admin = require('../config/firebase');
-const authenticateToken = require('../middlewares/authMiddleware');
 const TimeUtils = require('../utils/timeUtils');
+
 // Get user balance
 exports.getBalance = async (req, res) => {
   try {
@@ -295,7 +295,7 @@ exports.transfer = async (req, res) => {
 📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
 📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, sender.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -314,7 +314,7 @@ exports.transfer = async (req, res) => {
 📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
 📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, recipient.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -336,9 +336,9 @@ exports.transfer = async (req, res) => {
         recipient: {
           username: recipient.username,
           fullName: recipient.fullName,
-          phoneNumber: recipient.phoneNumber,
-           createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
-        }
+          phoneNumber: recipient.phoneNumber
+        },
+        createdAt: TimeUtils.formatForUser(transaction.createdAt, sender.timezone)
       }
     });
   } catch (err) {

@@ -4,14 +4,14 @@ const User = require('../models/User');
 const TimeUtils = require('../utils/timeUtils');
 const { sendOtpEmail, sendResetPasswordEmail } = require('../config/email');
 const secretKey = process.env.JWT_SECRET;
-const userTimezone = timezone && TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
+
 // Generate OTP
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // Register new user with OTP
 exports.register = async (req, res) => {
   try {
-    const { username, password, fullName, email, address, phoneNumber } = req.body;
+    const { username, password, fullName, email, address, phoneNumber, timezone } = req.body;
     
     // Validation
     if (!username || !password || !fullName || !email || !address || !phoneNumber) {
@@ -20,8 +20,9 @@ exports.register = async (req, res) => {
         message: 'All fields are required' 
       });
     }
-      // Validasi timezone
-   const userTimezone = timezone && TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
+
+    // Validasi timezone - handle undefined/null
+    const userTimezone = timezone && TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
 
     // Check if user exists
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -64,10 +65,11 @@ exports.register = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('❌ Registration Error:', err);
     res.status(500).json({
       success: false,
       message: 'Registration failed',
-      error: err.message
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
@@ -158,7 +160,7 @@ exports.resendOtp = async (req, res) => {
     }
 
     const otpCode = generateOtp();
-   const otpExpires = TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 5); // 5 minutes
+    const otpExpires = TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 5); // 5 minutes
 
     user.otp = {
       code: otpCode,
@@ -184,7 +186,7 @@ exports.resendOtp = async (req, res) => {
 // User login
 exports.login = async (req, res) => {
   try {
-    const { username, password,timezone } = req.body;
+    const { username, password, timezone } = req.body;
     
     if (!username || !password) {
       return res.status(400).json({
@@ -215,7 +217,8 @@ exports.login = async (req, res) => {
         message: 'Invalid credentials'
       });
     }
-  // Update timezone jika provided
+
+    // Update timezone jika provided
     if (timezone && TimeUtils.isValidTimezone(timezone)) {
       user.timezone = timezone;
       await user.save();
@@ -226,7 +229,7 @@ exports.login = async (req, res) => {
         id: user._id, 
         username: user.username,
         email: user.email,
-          timezone: user.timezone
+        timezone: user.timezone
       }, 
       secretKey, 
       { expiresIn: '1h' }
@@ -244,7 +247,7 @@ exports.login = async (req, res) => {
         address: user.address,
         phoneNumber: user.phoneNumber,
         balance: user.balance,
-         timezone: user.timezone,
+        timezone: user.timezone,
         createdAt: TimeUtils.formatForUser(user.createdAt, user.timezone)
       }
     });
@@ -287,7 +290,7 @@ exports.forgotPassword = async (req, res) => {
 
     user.resetToken = {
       token: resetToken,
-       expiresAt: TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 15) // 15 minutes
+      expiresAt: TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 15) // 15 minutes
     };
 
     await user.save();
@@ -333,7 +336,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    if (user.resetToken.expiresAt < new Date()) {
+    if (user.resetToken.expiresAt < TimeUtils.getUTCTime()) {
       return res.status(400).json({
         success: false,
         message: 'Token has expired'

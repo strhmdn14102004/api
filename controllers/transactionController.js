@@ -8,10 +8,9 @@ const snap = require('../config/midtrans');
 const sendTelegramNotification = require('../config/telegram');
 const { sendTransactionEmail } = require('../config/email');
 const admin = require('../config/firebase');
-const authenticateToken = require('../middlewares/authMiddleware');
+const TimeUtils = require('../utils/timeUtils');
 
 // Create new transaction
-// Create new transaction - PERBAIKAN
 exports.createTransaction = async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
@@ -102,7 +101,7 @@ exports.createTransaction = async (req, res) => {
 🛍️ <b>Product:</b> ${item.name}
 💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
 💳 <b>Current Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
 ------------------------
 <b>Status:</b> <i>Waiting for payment</i> ⏳
@@ -119,7 +118,8 @@ exports.createTransaction = async (req, res) => {
       data: {
         paymentUrl: transaction.paymentUrl,
         transaction,
-        userBalance: user.balance
+        userBalance: user.balance,
+        createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
       }
     });
   } catch (err) {
@@ -224,7 +224,7 @@ exports.directPurchase = async (req, res) => {
 🛍️ <b>Product:</b> ${item.name}
 💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
 💳 <b>New Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -239,7 +239,8 @@ exports.directPurchase = async (req, res) => {
       message: 'Direct purchase successful',
       data: {
         transaction,
-        newBalance: user.balance
+        newBalance: user.balance,
+        createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
       }
     });
   } catch (err) {
@@ -272,7 +273,7 @@ exports.midtransWebhook = async (req, res) => {
     }
     
     const transaction = await Transaction.findById(order_id)
-      .populate('userId', 'fcmToken fullName email phoneNumber balance');
+      .populate('userId', 'fcmToken fullName email phoneNumber balance timezone');
       
     if (!transaction) {
       return res.status(404).json({
@@ -410,7 +411,7 @@ exports.sendTransactionNotifications = async (transaction) => {
 📱 <b>Phone:</b> ${user.phoneNumber || 'No phone'}
 🛍️ <b>Product:</b> ${transaction.itemName || 'Top Up'}
 💰 <b>Amount:</b> Rp${transaction.amount.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${new Date(transaction.createdAt).toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>New Status:</b> <i>${statusText}</i> ${statusEmoji}
     `;
@@ -596,7 +597,7 @@ exports.getTransactionDetails = async (req, res) => {
           'No. HP': transaction.userId.phoneNumber,
           'Produk': transaction.itemName,
           'Harga': `Rp${transaction.amount.toLocaleString('id-ID')}`,
-          'Waktu': transaction.createdAt.toLocaleString('id-ID'),
+          'Waktu':TimeUtils.formatForUser(transaction.createdAt, user.timezone),
           '------------------------': '------------------------',
           'Status Terbaru': statusDisplay
         },
@@ -697,7 +698,7 @@ exports.approveTransaction = async (req, res) => {
     transaction.metadata = {
       ...transaction.metadata,
       adminNotes,
-      approvedAt: new Date(),
+      approvedAt: TimeUtils.formatForUser(transaction.approvedAt, user.timezone),
       approvedBy: req.user.id
     };
 
