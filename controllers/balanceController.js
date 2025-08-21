@@ -204,6 +204,7 @@ exports.withdraw = async (req, res) => {
 };
 
 // Transfer balance to another user
+// Transfer balance to another user
 exports.transfer = async (req, res) => {
   try {
     const { recipientUsername, amount, notes } = req.body;
@@ -245,40 +246,58 @@ exports.transfer = async (req, res) => {
 
     await Promise.all([sender.save(), recipient.save()]);
 
-    const transaction = new Transaction({
-      userId: req.user.id,
-      itemType: 'transfer',
-      amount,
+    // Create TWO transactions: one for sender and one for recipient
+    const senderTransaction = new Transaction({
+      userId: sender._id,
+      itemType: 'transfer_out',
+      amount: amount,
       status: 'success',
       recipientId: recipient._id,
       metadata: {
         notes,
         recipientName: recipient.fullName,
-        recipientPhone: recipient.phoneNumber
+        recipientUsername: recipient.username,
+        recipientPhone: recipient.phoneNumber,
+        direction: 'outgoing'
       }
     });
 
-    await transaction.save();
+    const recipientTransaction = new Transaction({
+      userId: recipient._id,
+      itemType: 'transfer_in',
+      amount: amount,
+      status: 'success',
+      senderId: sender._id,
+      metadata: {
+        notes,
+        senderName: sender.fullName,
+        senderUsername: sender.username,
+        senderPhone: sender.phoneNumber,
+        direction: 'incoming'
+      }
+    });
+
+    await Promise.all([senderTransaction.save(), recipientTransaction.save()]);
 
     // Record balance history for both users
     const senderHistory = new BalanceHistory({
       userId: sender._id,
-      transactionId: transaction._id,
+      transactionId: senderTransaction._id,
       amount: -amount,
       previousBalance: sender.balance + amount,
       newBalance: sender.balance,
-      type: 'transfer',
-      description: `Transfer to ${recipient.username}`
+      type: 'transfer_out',
+      description: `Transfer to ${recipient.username} (${recipient.fullName})`
     });
 
     const recipientHistory = new BalanceHistory({
       userId: recipient._id,
-      transactionId: transaction._id,
-      amount,
+      transactionId: recipientTransaction._id,
+      amount: amount,
       previousBalance: recipient.balance - amount,
       newBalance: recipient.balance,
-      type: 'transfer',
-      description: `Transfer from ${sender.username}`
+      type: 'transfer_in',
+      description: `Transfer from ${sender.username} (${sender.fullName})`
     });
 
     await Promise.all([senderHistory.save(), recipientHistory.save()]);
@@ -287,7 +306,7 @@ exports.transfer = async (req, res) => {
     const senderTelegramMessage = `
 ➡️ <b>TRANSFER SENT</b> ➡️
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
+📌 <b>Transaction ID:</b> ${senderTransaction._id}
 👤 <b>Sender:</b> ${sender.fullName}
 📧 <b>Sender Email:</b> ${sender.email}
 📱 <b>Sender Phone:</b> ${sender.phoneNumber}
@@ -295,7 +314,7 @@ exports.transfer = async (req, res) => {
 📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
 📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, sender.timezone)}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(senderTransaction.createdAt, sender.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -306,7 +325,7 @@ exports.transfer = async (req, res) => {
     const recipientTelegramMessage = `
 ⬅️ <b>TRANSFER RECEIVED</b> ⬅️
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
+📌 <b>Transaction ID:</b> ${recipientTransaction._id}
 👤 <b>Sender:</b> ${sender.fullName} (@${sender.username})
 📱 <b>Sender Phone:</b> ${sender.phoneNumber}
 👥 <b>Recipient:</b> ${recipient.fullName}
@@ -314,7 +333,7 @@ exports.transfer = async (req, res) => {
 📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
 📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, recipient.timezone)}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(recipientTransaction.createdAt, recipient.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -323,25 +342,26 @@ exports.transfer = async (req, res) => {
 
     // Send email notifications
     await Promise.all([
-      sendTransactionEmail(sender.email, transaction, sender),
-      sendTransactionEmail(recipient.email, transaction, recipient)
+      sendTransactionEmail(sender.email, senderTransaction, sender),
+      sendTransactionEmail(recipient.email, recipientTransaction, recipient)
     ]);
 
     res.status(201).json({
       success: true,
       message: 'Transfer successful',
       data: {
-        transactionId: transaction._id,
+        transactionId: senderTransaction._id,
         amount,
         recipient: {
           username: recipient.username,
           fullName: recipient.fullName,
           phoneNumber: recipient.phoneNumber
         },
-        createdAt: TimeUtils.formatForUser(transaction.createdAt, sender.timezone)
+        createdAt: TimeUtils.formatForUser(senderTransaction.createdAt, sender.timezone)
       }
     });
   } catch (err) {
+    console.error('❌ Transfer Error:', err);
     res.status(500).json({
       success: false,
       message: 'Error processing transfer',
