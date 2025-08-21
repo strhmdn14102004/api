@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const TimeUtils = require('../utils/timeUtils');
 const { sendOtpEmail, sendResetPasswordEmail } = require('../config/email');
 const secretKey = process.env.JWT_SECRET;
 
@@ -19,6 +20,8 @@ exports.register = async (req, res) => {
         message: 'All fields are required' 
       });
     }
+      // Validasi timezone
+    const userTimezone = TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
 
     // Check if user exists
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -31,7 +34,7 @@ exports.register = async (req, res) => {
 
     // Create user with OTP
     const otpCode = generateOtp();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpExpires = TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 5); // 5 minutes
 
     const newUser = new User({
       username,
@@ -40,6 +43,7 @@ exports.register = async (req, res) => {
       email,
       address,
       phoneNumber,
+      timezone: userTimezone,
       otp: {
         code: otpCode,
         expiresAt: otpExpires
@@ -53,7 +57,11 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'User registered. Please verify your email with the OTP sent.'
+      message: 'User registered. Please verify your email with the OTP sent.',
+      data: {
+        userId: newUser._id,
+        timezone: userTimezone
+      }
     });
   } catch (err) {
     res.status(500).json({
@@ -98,7 +106,7 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
-    if (user.otp.expiresAt < new Date()) {
+    if (user.otp.expiresAt < TimeUtils.getUTCTime()) {
       return res.status(400).json({
         success: false,
         message: 'OTP has expired'
@@ -150,7 +158,7 @@ exports.resendOtp = async (req, res) => {
     }
 
     const otpCode = generateOtp();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+   const otpExpires = TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 5); // 5 minutes
 
     user.otp = {
       code: otpCode,
@@ -176,7 +184,7 @@ exports.resendOtp = async (req, res) => {
 // User login
 exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password,timezone } = req.body;
     
     if (!username || !password) {
       return res.status(400).json({
@@ -207,12 +215,18 @@ exports.login = async (req, res) => {
         message: 'Invalid credentials'
       });
     }
+  // Update timezone jika provided
+    if (timezone && TimeUtils.isValidTimezone(timezone)) {
+      user.timezone = timezone;
+      await user.save();
+    }
 
     const token = jwt.sign(
       { 
         id: user._id, 
         username: user.username,
-        email: user.email
+        email: user.email,
+          timezone: user.timezone
       }, 
       secretKey, 
       { expiresIn: '1h' }
@@ -229,7 +243,9 @@ exports.login = async (req, res) => {
         email: user.email,
         address: user.address,
         phoneNumber: user.phoneNumber,
-        balance: user.balance
+        balance: user.balance,
+         timezone: user.timezone,
+        createdAt: TimeUtils.formatForUser(user.createdAt, user.timezone)
       }
     });
   } catch (err) {
@@ -271,7 +287,7 @@ exports.forgotPassword = async (req, res) => {
 
     user.resetToken = {
       token: resetToken,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+       expiresAt: TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 15) // 15 minutes
     };
 
     await user.save();

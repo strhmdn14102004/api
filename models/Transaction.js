@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const TimeUtils = require('../utils/timeUtils');
 
 const transactionSchema = new mongoose.Schema({
   userId: { 
@@ -40,11 +41,21 @@ const transactionSchema = new mongoose.Schema({
   },
   createdAt: { 
     type: Date, 
-    default: Date.now 
+    default: TimeUtils.getUTCTime
+  },
+  updatedAt: { 
+    type: Date, 
+    default: TimeUtils.getUTCTime
   }
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
+});
+
+// Update updatedAt sebelum save
+transactionSchema.pre('save', function(next) {
+  this.updatedAt = TimeUtils.getUTCTime();
+  next();
 });
 
 // Virtual for transaction type
@@ -53,6 +64,15 @@ transactionSchema.virtual('type').get(function() {
   if (this.itemType === 'withdrawal') return 'Withdrawal';
   if (this.itemType === 'transfer') return 'Transfer';
   return 'Product Purchase';
+});
+
+// Virtual untuk format waktu berdasarkan user timezone
+transactionSchema.virtual('createdAtFormatted').get(function() {
+  // Butuh populate user untuk mendapatkan timezone
+  if (this.userId && this.userId.timezone) {
+    return TimeUtils.formatForUser(this.createdAt, this.userId.timezone);
+  }
+  return TimeUtils.formatForUser(this.createdAt, 'Asia/Jakarta');
 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

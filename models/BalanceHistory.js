@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const TimeUtils = require('../utils/timeUtils');
 
 const balanceHistorySchema = new mongoose.Schema({
   userId: { 
@@ -30,9 +31,19 @@ const balanceHistorySchema = new mongoose.Schema({
   description: {
     type: String
   },
+   timezone: {
+      type: String,
+      default: 'Asia/Jakarta',
+      validate: {
+        validator: function(tz) {
+          return TimeUtils.isValidTimezone(tz);
+        },
+        message: 'Invalid timezone'
+      }
+    },
   createdAt: {
     type: Date,
-    default: Date.now
+    default:TimeUtils.getUTCTime
   }
 });
 

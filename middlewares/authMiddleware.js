@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const secretKey = process.env.JWT_SECRET;
+const TimeUtils = require('../utils/timeUtils');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -20,7 +21,13 @@ const authenticateToken = (req, res, next) => {
       });
     }
     
-    req.user = decoded;
+    // Deteksi timezone dari header jika ada
+    const userTimezone = TimeUtils.detectTimezone(req);
+    req.user = {
+      ...decoded,
+      timezone: decoded.timezone || userTimezone
+    };
+    
     next();
   });
 };

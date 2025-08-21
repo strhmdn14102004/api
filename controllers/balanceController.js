@@ -6,15 +6,17 @@ const sendTelegramNotification = require('../config/telegram');
 const { sendTransactionEmail } = require('../config/email');
 const admin = require('../config/firebase');
 const authenticateToken = require('../middlewares/authMiddleware');
-
+const TimeUtils = require('../utils/timeUtils');
 // Get user balance
 exports.getBalance = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('balance');
+    const user = await User.findById(req.user.id).select('balance timezone');
     res.status(200).json({
       success: true,
       data: {
-        balance: user.balance
+        balance: user.balance,
+        timezone: user.timezone,
+        lastUpdated: TimeUtils.formatForUser(user.updatedAt, user.timezone)
       }
     });
   } catch (err) {
@@ -87,7 +89,7 @@ exports.topUp = async (req, res) => {
 📧 <b>Email:</b> ${user.email}
 📱 <b>Phone:</b> ${user.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
 ------------------------
 <b>Status:</b> <i>Pending Payment</i> ⏳
@@ -104,7 +106,8 @@ exports.topUp = async (req, res) => {
       data: {
         transactionId: transaction._id,
         amount,
-        paymentUrl: transactionData.redirect_url
+        paymentUrl: transactionData.redirect_url,
+        createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
       }
     });
   } catch (err) {
@@ -172,7 +175,7 @@ exports.withdraw = async (req, res) => {
 📧 <b>Email:</b> ${user.email}
 📱 <b>Phone:</b> ${user.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>Status:</b> <i>Pending Approval</i> ⏳
     `;
@@ -187,7 +190,8 @@ exports.withdraw = async (req, res) => {
       message: 'Withdrawal request created',
       data: {
         transactionId: transaction._id,
-        amount
+        amount,
+        createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
       }
     });
   } catch (err) {
@@ -291,7 +295,7 @@ exports.transfer = async (req, res) => {
 📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
 📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -310,7 +314,7 @@ exports.transfer = async (req, res) => {
 📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
 💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
 📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${new Date().toLocaleString('id-ID')}
+📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>Status:</b> <i>Success</i> ✅
     `;
@@ -332,7 +336,8 @@ exports.transfer = async (req, res) => {
         recipient: {
           username: recipient.username,
           fullName: recipient.fullName,
-          phoneNumber: recipient.phoneNumber
+          phoneNumber: recipient.phoneNumber,
+           createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
         }
       }
     });
@@ -350,17 +355,27 @@ exports.getHistory = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     
+    const user = await User.findById(req.user.id).select('timezone');
+    const userTimezone = user?.timezone || 'Asia/Jakarta';
+
     const history = await BalanceHistory.find({ userId: req.user.id })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
 
+    // Format waktu untuk user
+    const formattedHistory = history.map(item => ({
+      ...item,
+      createdAtFormatted: TimeUtils.formatForUser(item.createdAt, userTimezone)
+    }));
+
     const count = await BalanceHistory.countDocuments({ userId: req.user.id });
 
     res.status(200).json({
       success: true,
-      data: history,
+      data: formattedHistory,
+      timezone: userTimezone,
       pagination: {
         total: count,
         page: parseInt(page),
