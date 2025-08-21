@@ -544,6 +544,7 @@ exports.getTransactionHistory = async (req, res) => {
 };
 
 // Get transaction details
+// Get transaction details
 exports.getTransactionDetails = async (req, res) => {
   try {
     const transactionId = req.params.id;
@@ -556,7 +557,7 @@ exports.getTransactionDetails = async (req, res) => {
     }
     
     const transaction = await Transaction.findById(transactionId)
-      .populate('userId', 'fullName phoneNumber');
+      .populate('userId', 'fullName phoneNumber timezone');
       
     if (!transaction) {
       return res.status(404).json({ 
@@ -565,7 +566,8 @@ exports.getTransactionDetails = async (req, res) => {
       });
     }
     
-    if (transaction.userId._id.toString() !== req.user.id) {
+    // Check if user has access to this transaction
+    if (transaction.userId._id.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false,
         message: 'Anda tidak memiliki akses ke transaksi ini' 
@@ -594,10 +596,10 @@ exports.getTransactionDetails = async (req, res) => {
         transactionDetails: {
           'ID Transaksi': transaction._id.toString(),
           'Pelanggan': transaction.userId.fullName,
-          'No. HP': transaction.userId.phoneNumber,
+          'No. HP': transaction.userId.phoneNumber || 'Tidak ada',
           'Produk': transaction.itemName,
           'Harga': `Rp${transaction.amount.toLocaleString('id-ID')}`,
-          'Waktu':TimeUtils.formatForUser(transaction.createdAt, user.timezone),
+          'Waktu': TimeUtils.formatForUser(transaction.createdAt, transaction.userId.timezone),
           '------------------------': '------------------------',
           'Status Terbaru': statusDisplay
         },
