@@ -188,7 +188,7 @@
                 <p>Terima kasih telah menggunakan layanan ini <%= 
                     transaction.itemType === 'topup' ? 'Saldo telah ditambahkan ke akun Anda' : 
                     transaction.itemType === 'transfer' ? 'Transfer telah berhasil dilakukan' : 
-                    'Produk sedang diproses' %>.</p>
+                    '' %>.</p>
                 
                 <% if (transaction.itemType === 'topup' || transaction.itemType === 'transfer') { %>
                 <p>Saldo kamu saat ini: <strong>Rp<%= (user.balance || 0).toLocaleString('id-ID') %></strong></p>
