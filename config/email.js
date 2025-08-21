@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
 const ejs = require('ejs');
+const User = require('../models/User'); // Tambahkan ini
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_SMTP_HOST,
@@ -41,6 +42,19 @@ module.exports = {
     await sendEmail(email, `Transaction ${transaction.status} - ${transaction._id}`, 'transaction', { transaction, user });
   },
   sendResetPasswordEmail: async (email, resetLink) => {
-    await sendEmail(email, 'Password Reset Request', 'reset-password', { resetLink });
+    // Dapatkan user data berdasarkan email
+    const user = await User.findOne({ email }).select('fullName email');
+    
+    if (!user) {
+      throw new Error('User not found for password reset email');
+    }
+    
+    await sendEmail(email, 'Password Reset Request', 'reset-password', { 
+      resetLink,
+      user: {
+        fullName: user.fullName,
+        email: user.email
+      }
+    });
   }
 };
