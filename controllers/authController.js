@@ -4,7 +4,7 @@ const User = require('../models/User');
 const TimeUtils = require('../utils/timeUtils');
 const { sendOtpEmail, sendResetPasswordEmail } = require('../config/email');
 const secretKey = process.env.JWT_SECRET;
-
+const userTimezone = timezone && TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
 // Generate OTP
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -21,7 +21,7 @@ exports.register = async (req, res) => {
       });
     }
       // Validasi timezone
-    const userTimezone = TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
+   const userTimezone = timezone && TimeUtils.isValidTimezone(timezone) ? timezone : 'Asia/Jakarta';
 
     // Check if user exists
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });

@@ -5,11 +5,15 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const app = express();
 
-// Rate limiting
+// Trust proxy untuk railway/deployment
+app.set('trust proxy', 1);
+
+// Rate limiting dengan trust proxy
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later'
+  message: 'Too many requests from this IP, please try again later',
+  trustProxy: true // Tambahkan ini
 });
 
 // Import routes
@@ -19,7 +23,7 @@ const imeiRoutes = require('./routes/imeiRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const balanceRoutes = require('./routes/balanceRoutes');
-const homeRoutes = require('./routes/homeRoutes'); // Tambahkan ini
+const homeRoutes = require('./routes/homeRoutes');
 
 // Middleware
 app.use(cors());
@@ -49,13 +53,15 @@ app.use('/api/imei', imeiRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/balance', balanceRoutes);
-app.use('/api/home', homeRoutes); // Tambahkan ini
+app.use('/api/home', homeRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    timezone: 'UTC',
+    serverTime: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
   });
 });
 
@@ -73,5 +79,5 @@ app.use((err, req, res, next) => {
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
-  console.log('⏰ Server Time:', new Date().toLocaleString());
+  console.log('⏰ Server Time:', new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
 });
