@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>OTP Verification</title>
+    <title>Verifikasi Kode OTP SatTech</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -25,14 +25,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>OTP Verification</h1>
+            <h1>Verifikasi Kode OTP</h1>
         </div>
         <div class="content">
-            <p>Hello,</p>
-            <p>Your OTP code for account verification is:</p>
+            <p>Hallo,<strong><%= user.fullName %></strong>,</p>
+            <p>Kode verifikasi otp kamu adalah :</p>
             <div class="otp-code"><%= otpCode %></div>
-            <p>This code will expire in 5 minutes. Please do not share this code with anyone.</p>
-            <p>If you didn't request this, please ignore this email.</p>
+            <p>Kode ini akan kadaluarsa dalam 5 menit. jangan share kode ini kepada siapapun</p>
+            <p>Jika kamu tidak merasa ini adalah kamu, abaikan saja email ini</p>
         </div>
         <div class="footer">
             <p>&copy; <%= new Date().getFullYear() %> SatTech. All rights reserved.</p>

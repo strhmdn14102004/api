@@ -73,7 +73,7 @@
         }
         .action-button {
             display: inline-block;
-            background-color: #2196F3;
+            background-color: #000000;
             color: white;
             padding: 12px 24px;
             text-decoration: none;
@@ -94,13 +94,13 @@
         </div>
         
         <div class="content">
-            <p>Hello <strong><%= user.fullName %></strong>,</p>
+            <p>Hallo <strong><%= user.fullName %></strong>,</p>
             
-            <p>Your transaction details:</p>
+            <p>Detail Transaksi kamu:</p>
             
             <div class="transaction-details">
                 <div class="detail-row">
-                    <span class="detail-label">Transaction ID:</span>
+                    <span class="detail-label">ID Transaksi</span>
                     <span><%= transaction._id %></span>
                 </div>
                 
@@ -119,18 +119,18 @@
                 
                 <% if (transaction.itemName) { %>
                 <div class="detail-row">
-                    <span class="detail-label">Product:</span>
+                    <span class="detail-label">Produk Transaksi:</span>
                     <span><%= transaction.itemName %></span>
                 </div>
                 <% } %>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Amount:</span>
+                    <span class="detail-label">Harga:</span>
                     <span>Rp<%= transaction.amount.toLocaleString('id-ID') %></span>
                 </div>
                 
                 <div class="detail-row">
-  <span class="detail-label">Date:</span>
+  <span class="detail-label">Tanggal Transaksi :</span>
   <span>
     <% 
     const userTimezone = user.timezone || 'Asia/Jakarta';
@@ -150,72 +150,72 @@
 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Status:</span>
+                    <span class="detail-label">Status Transaksi:</span>
                     <span class="status"><%= transaction.status %></span>
                 </div>
                 
                 <% if (transaction.metadata && transaction.metadata.recipientName) { %>
                 <div class="detail-row">
-                    <span class="detail-label">Recipient:</span>
+                    <span class="detail-label">Penerima:</span>
                     <span><%= transaction.metadata.recipientName %></span>
                 </div>
                 <% } %>
                 
                 <% if (transaction.metadata && transaction.metadata.recipientPhone) { %>
                 <div class="detail-row">
-                    <span class="detail-label">Recipient Phone:</span>
+                    <span class="detail-label">Nomor Handphone Penerima:</span>
                     <span><%= transaction.metadata.recipientPhone %></span>
                 </div>
                 <% } %>
                 
                 <% if (transaction.metadata && transaction.metadata.notes) { %>
                 <div class="detail-row">
-                    <span class="detail-label">Notes:</span>
+                    <span class="detail-label">Catatan Transaksi:</span>
                     <span><%= transaction.metadata.notes %></span>
                 </div>
                 <% } %>
                 
                 <% if (transaction.metadata && transaction.metadata.adminNotes) { %>
                 <div class="detail-row">
-                    <span class="detail-label">Admin Notes:</span>
+                    <span class="detail-label">Catatan dari admin:</span>
                     <span><%= transaction.metadata.adminNotes %></span>
                 </div>
                 <% } %>
             </div>
             
             <% if (transaction.status === 'success') { %>
-                <p style="color: #4CAF50; font-weight: bold;">✓ Your transaction was successful!</p>
-                <p>Thank you for using our service. The <%= 
-                    transaction.itemType === 'topup' ? 'funds have been added to your account' : 
-                    transaction.itemType === 'transfer' ? 'transfer has been completed' : 
-                    'product has been processed' %>.</p>
+                <p style="color: #4CAF50; font-weight: bold;">✓ Transaksi kamu telah berhasil dilakukan!</p>
+                <p>Terima kasih telah menggunakan layanan ini <%= 
+                    transaction.itemType === 'topup' ? 'Saldo telah ditambahkan ke akun Anda' : 
+                    transaction.itemType === 'transfer' ? 'Transfer telah berhasil dilakukan' : 
+                    'Produk sedang diproses' %>.</p>
                 
                 <% if (transaction.itemType === 'topup' || transaction.itemType === 'transfer') { %>
                 <p>Your current balance: <strong>Rp<%= (user.balance || 0).toLocaleString('id-ID') %></strong></p>
                 <% } %>
                 
             <% } else if (transaction.status === 'failed') { %>
-                <p style="color: #F44336; font-weight: bold;">✗ Your transaction failed.</p>
-                <p>Please try again or contact our support team if you need assistance.</p>
+                <p style="color: #F44336; font-weight: bold;">✗ Transaksi kamu gagal dilakukan.</p>
+                <p>Tolong coba lagi, atau hubungi admin kami untuk mendapatkan bantuan</p>
                 
             <% } else { %>
-                <p style="color: #FFC107; font-weight: bold;">⏳ Your transaction is being processed.</p>
-                <p>We'll notify you once the transaction is completed. This usually takes a few minutes.</p>
+                <p style="color: #FFC107; font-weight: bold;">⏳ Transaksi kamu sedang diproses.</p>
+                <p>Kami akan memberitahu kamu ketika transaksi telah selesai. transaksi ini mungkin membutuhkan waktu dalam beberapa menit.</p>
             <% } %>
             
             <% if (transaction.paymentUrl && transaction.status === 'pending') { %>
                 <p>
-                    <a href="<%= transaction.paymentUrl %>" class="action-button">Complete Payment</a>
+                    <a href="<%= transaction.paymentUrl %>" class="action-button">Selesaikan pembayaran</a>
                 </p>
-                <p><small>Payment link will expire in 24 hours</small></p>
+                <p><small>Link pembayaran akan berhasil dalam 24 jam</small></p>
             <% } %>
             
-            <p>If you didn't initiate this transaction or need any help, please contact our support team immediately.</p>
+            <p>Jika kamu tidak melakukan transaksi apapun, abaikan pesan ini. atau hubungi tim support kami untuk mendapatkan bantuan.</p>
         </div>
         
         <div class="footer">
-            <p>&copy; <%= new Date().getFullYear() %> Sattech. All rights reserved.</p>
-            <p>This is an automated message, please do not reply directly to this email.</p>
+            <p>&copy; <%= new Date().getFullYear() %> SatTech. All rights reserved.</p>
+            <p>Pesan ini adalah otomatis, tolong jangan balas pesan ini.</p>
         </div>
     </div>
 </body>
