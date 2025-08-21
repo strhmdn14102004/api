@@ -693,12 +693,21 @@ exports.approveTransaction = async (req, res) => {
       });
     }
 
+    // Get user to access timezone
+    const user = await User.findById(transaction.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     // Update status dan catatan admin
     transaction.status = 'success';
     transaction.metadata = {
       ...transaction.metadata,
       adminNotes,
-      approvedAt: TimeUtils.formatForUser(transaction.approvedAt, user.timezone),
+      approvedAt: TimeUtils.formatForUser(new Date(), user.timezone),
       approvedBy: req.user.id
     };
 
@@ -706,13 +715,10 @@ exports.approveTransaction = async (req, res) => {
 
     // Jika transaksi topup, update balance user
     if (transaction.itemType === 'topup') {
-      await User.findByIdAndUpdate(
-        transaction.userId,
-        { $inc: { balance: transaction.amount } }
-      );
+      user.balance += transaction.amount;
+      await user.save();
 
       // Catat history balance
-      const user = await User.findById(transaction.userId);
       const balanceHistory = new BalanceHistory({
         userId: user._id,
         transactionId: transaction._id,
