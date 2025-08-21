@@ -204,7 +204,6 @@ exports.withdraw = async (req, res) => {
 };
 
 // Transfer balance to another user
-// Transfer balance to another user
 exports.transfer = async (req, res) => {
   try {
     const { recipientUsername, amount, notes } = req.body;
@@ -249,7 +248,7 @@ exports.transfer = async (req, res) => {
     // Create TWO transactions: one for sender and one for recipient
     const senderTransaction = new Transaction({
       userId: sender._id,
-      itemType: 'transfer_out',
+      itemType: 'transfer', // Gunakan 'transfer' sesuai enum
       amount: amount,
       status: 'success',
       recipientId: recipient._id,
@@ -258,13 +257,14 @@ exports.transfer = async (req, res) => {
         recipientName: recipient.fullName,
         recipientUsername: recipient.username,
         recipientPhone: recipient.phoneNumber,
-        direction: 'outgoing'
+        direction: 'outgoing', // Bedakan dengan metadata
+        transactionType: 'transfer_out'
       }
     });
 
     const recipientTransaction = new Transaction({
       userId: recipient._id,
-      itemType: 'transfer_in',
+      itemType: 'transfer', // Gunakan 'transfer' sesuai enum
       amount: amount,
       status: 'success',
       senderId: sender._id,
@@ -273,7 +273,8 @@ exports.transfer = async (req, res) => {
         senderName: sender.fullName,
         senderUsername: sender.username,
         senderPhone: sender.phoneNumber,
-        direction: 'incoming'
+        direction: 'incoming', // Bedakan dengan metadata
+        transactionType: 'transfer_in'
       }
     });
 
@@ -286,7 +287,7 @@ exports.transfer = async (req, res) => {
       amount: -amount,
       previousBalance: sender.balance + amount,
       newBalance: sender.balance,
-      type: 'transfer_out',
+      type: 'transfer_out', // BalanceHistory mendukung transfer_out
       description: `Transfer to ${recipient.username} (${recipient.fullName})`
     });
 
@@ -296,7 +297,7 @@ exports.transfer = async (req, res) => {
       amount: amount,
       previousBalance: recipient.balance - amount,
       newBalance: recipient.balance,
-      type: 'transfer_in',
+      type: 'transfer_in', // BalanceHistory mendukung transfer_in
       description: `Transfer from ${sender.username} (${sender.fullName})`
     });
 
