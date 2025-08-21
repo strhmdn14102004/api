@@ -410,7 +410,7 @@ exports.sendTransactionNotifications = async (transaction) => {
 📧 <b>Email:</b> ${user.email || 'No email'}
 📱 <b>Nomor Handphone:</b> ${user.phoneNumber || 'No phone'}
 🛍️ <b>Produk:</b> ${transaction.itemName || 'Top Up'}
-💰 <b>Harga:</b> Rp${transaction.amount.toLocaleString('id-ID')}
+💰 <b>Jumlah:</b> Rp${transaction.amount.toLocaleString('id-ID')}
 📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>Status terbaru:</b> <i>${statusText}</i> ${statusEmoji}

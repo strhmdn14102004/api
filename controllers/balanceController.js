@@ -88,7 +88,7 @@ exports.topUp = async (req, res) => {
 👤 <b>Kustomer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
 📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
-💵 <b>Saldo:</b> Rp${amount.toLocaleString('id-ID')}
+💵 <b>Jumlah:</b> Rp${amount.toLocaleString('id-ID')}
 📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 🔗 <b>Link Pembayaran:</b> <a href="${transactionData.redirect_url}">Klik disini</a>
 ------------------------
@@ -174,7 +174,7 @@ exports.withdraw = async (req, res) => {
 👤 <b>Kustomer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
 📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
-💵 <b>Saldo:</b> Rp${amount.toLocaleString('id-ID')}
+💵 <b>Jumlah:</b> Rp${amount.toLocaleString('id-ID')}
 📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
 <b>Status:</b> <i>Menunggu Disetujui</i> ⏳
