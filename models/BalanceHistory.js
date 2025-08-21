@@ -25,7 +25,7 @@ const balanceHistorySchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['topup', 'withdrawal', 'transfer', 'purchase', 'income'],
+    enum: ['topup', 'withdrawal', 'transfer', 'purchase', 'income', 'refund', 'fee','transfer_in', 'transfer_out'],
     required: true
   },
   description: {
