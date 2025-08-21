@@ -120,7 +120,7 @@ exports.topUp = async (req, res) => {
   }
 };
 
-// Withdraw balance
+// Withdraw balance - langsung diproses tanpa approval
 exports.withdraw = async (req, res) => {
   try {
     const { amount } = req.body;
@@ -141,6 +141,7 @@ exports.withdraw = async (req, res) => {
     }
 
     // Deduct balance immediately for withdrawal
+    const previousBalance = user.balance;
     user.balance -= amount;
     await user.save();
 
@@ -148,7 +149,7 @@ exports.withdraw = async (req, res) => {
       userId: req.user.id,
       itemType: 'withdrawal',
       amount,
-      status: 'pending'
+      status: 'success' // Langsung success, tidak pending
     });
 
     await transaction.save();
@@ -158,17 +159,17 @@ exports.withdraw = async (req, res) => {
       userId: req.user.id,
       transactionId: transaction._id,
       amount: -amount,
-      previousBalance: user.balance + amount,
+      previousBalance: previousBalance,
       newBalance: user.balance,
       type: 'withdrawal',
-      description: 'Withdrawal request'
+      description: 'Penarikan saldo'
     });
 
     await balanceHistory.save();
 
     // Send Telegram notification
     const telegramMessage = `
-💸 <b>Permintaan Penarikan Saldo</b> 💸
+💸 <b>Penarikan Saldo Berhasil</b> 💸
 ------------------------
 📌 <b>ID Transaksi:</b> ${transaction._id}
 👤 <b>Kustomer:</b> ${user.fullName}
@@ -176,8 +177,10 @@ exports.withdraw = async (req, res) => {
 📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
 💵 <b>Jumlah:</b> Rp${amount.toLocaleString('id-ID')}
 📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+💰 <b>Saldo Sebelumnya:</b> Rp${previousBalance.toLocaleString('id-ID')}
+💰 <b>Saldo Sekarang:</b> Rp${user.balance.toLocaleString('id-ID')}
 ------------------------
-<b>Status:</b> <i>Menunggu Disetujui</i> ⏳
+<b>Status:</b> <i>Berhasil</i> ✅
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -187,14 +190,17 @@ exports.withdraw = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Permintaan penarikan berhasil dibuat',
+      message: 'Penarikan saldo berhasil',
       data: {
         transactionId: transaction._id,
         amount,
+        previousBalance,
+        newBalance: user.balance,
         createdAt: TimeUtils.formatForUser(transaction.createdAt, user.timezone)
       }
     });
   } catch (err) {
+    console.error('❌ Withdrawal Error:', err);
     res.status(500).json({
       success: false,
       message: 'Gagal memproses penarikan',
