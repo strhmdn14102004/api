@@ -228,7 +228,7 @@ exports.transfer = async (req, res) => {
     if (!recipient) {
       return res.status(404).json({
         success: false,
-        message: 'Pengguna penerima tidak ditemukan'
+        message: 'Penerima tidak ditemukan'
       });
     }
 
