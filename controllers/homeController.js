@@ -13,7 +13,7 @@ exports.getHomeData = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
@@ -155,14 +155,14 @@ exports.getHomeData = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Home data retrieved successfully',
+      message: 'Data beranda berhasil diambil',
       data: homeData
     });
   } catch (err) {
     console.error('❌ Home Data Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Error fetching home data',
+      message: 'Gagal mengambil data beranda',
       error: err.message
     });
   }
@@ -279,7 +279,7 @@ exports.getDashboardStats = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Dashboard statistics retrieved successfully',
+      message: 'Statistik dashboard berhasil diambil',
       data: {
         period,
         transactionStats,
@@ -297,7 +297,7 @@ exports.getDashboardStats = async (req, res) => {
     console.error('❌ Dashboard Stats Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Error fetching dashboard statistics',
+      message: 'Gagal mengambil statistik dashboard',
       error: err.message
     });
   }
@@ -312,7 +312,7 @@ exports.getProfileSummary = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
@@ -363,14 +363,14 @@ exports.getProfileSummary = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Profile summary retrieved successfully',
+      message: 'Ringkasan profil berhasil diambil',
       data: profileSummary
     });
   } catch (err) {
     console.error('❌ Profile Summary Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Error fetching profile summary',
+      message: 'Gagal mengambil ringkasan profil',
       error: err.message
     });
   }

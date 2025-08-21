@@ -22,7 +22,7 @@ exports.getBalance = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching balance',
+      message: 'Gagal mengambil saldo',
       error: err.message
     });
   }
@@ -36,7 +36,7 @@ exports.topUp = async (req, res) => {
     if (!amount || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Amount must be greater than 0'
+        message: 'Jumlah harus lebih dari 0'
       });
     }
 
@@ -44,7 +44,7 @@ exports.topUp = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
@@ -82,17 +82,17 @@ exports.topUp = async (req, res) => {
 
     // Send Telegram notification
     const telegramMessage = `
-💰 <b>TOP UP REQUEST</b> 💰
+💰 <b>Permintaan Top Up</b> 💰
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
-👤 <b>Customer:</b> ${user.fullName}
+📌 <b>ID Transaksi:</b> ${transaction._id}
+👤 <b>Kustomer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
-📱 <b>Phone:</b> ${user.phoneNumber}
-💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
-🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
+📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
+💵 <b>Saldo:</b> Rp${amount.toLocaleString('id-ID')}
+📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+🔗 <b>Link Pembayaran:</b> <a href="${transactionData.redirect_url}">Klik disini</a>
 ------------------------
-<b>Status:</b> <i>Pending Payment</i> ⏳
+<b>Status:</b> <i>Menunggu Pembayaran</i> ⏳
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -102,7 +102,7 @@ exports.topUp = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Top up request created',
+      message: 'Permintaan top up berhasil dibuat',
       data: {
         transactionId: transaction._id,
         amount,
@@ -114,7 +114,7 @@ exports.topUp = async (req, res) => {
     console.error('❌ Top Up Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Error processing top up',
+      message: 'Gagal memproses top up',
       error: err.message
     });
   }
@@ -128,7 +128,7 @@ exports.withdraw = async (req, res) => {
     if (!amount || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Amount must be greater than 0'
+        message: 'Jumlah penarikan harus lebih dari 0'
       });
     }
 
@@ -136,7 +136,7 @@ exports.withdraw = async (req, res) => {
     if (user.balance < amount) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient balance'
+        message: 'Saldo tidak mencukupi untuk penarikan'
       });
     }
 
@@ -168,16 +168,16 @@ exports.withdraw = async (req, res) => {
 
     // Send Telegram notification
     const telegramMessage = `
-💸 <b>WITHDRAWAL REQUEST</b> 💸
+💸 <b>Permintaan Penarikan Saldo</b> 💸
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
-👤 <b>Customer:</b> ${user.fullName}
+📌 <b>ID Transaksi:</b> ${transaction._id}
+👤 <b>Kustomer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
-📱 <b>Phone:</b> ${user.phoneNumber}
-💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
+💵 <b>Saldo:</b> Rp${amount.toLocaleString('id-ID')}
+📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
-<b>Status:</b> <i>Pending Approval</i> ⏳
+<b>Status:</b> <i>Menunggu Disetujui</i> ⏳
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -187,7 +187,7 @@ exports.withdraw = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Withdrawal request created',
+      message: 'Permintaan penarikan berhasil dibuat',
       data: {
         transactionId: transaction._id,
         amount,
@@ -197,7 +197,7 @@ exports.withdraw = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'Error processing withdrawal',
+      message: 'Gagal memproses penarikan',
       error: err.message
     });
   }
@@ -211,14 +211,14 @@ exports.transfer = async (req, res) => {
     if (!recipientUsername || !amount || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Recipient and amount are required'
+        message: 'Username penerima dan jumlah harus diisi'
       });
     }
 
     if (req.user.username === recipientUsername) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot transfer to yourself'
+        message: 'Tidak dapat mentransfer ke akun sendiri'
       });
     }
 
@@ -228,14 +228,14 @@ exports.transfer = async (req, res) => {
     if (!recipient) {
       return res.status(404).json({
         success: false,
-        message: 'Recipient not found'
+        message: 'Pengguna penerima tidak ditemukan'
       });
     }
 
     if (sender.balance < amount) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient balance'
+        message: 'Saldo tidak mencukupi untuk transfer'
       });
     }
 
@@ -305,38 +305,39 @@ exports.transfer = async (req, res) => {
 
     // Send Telegram notification for sender
     const senderTelegramMessage = `
-➡️ <b>TRANSFER SENT</b> ➡️
+➡️ <b>Pengiriman Saldo</b> ➡️
 ------------------------
-📌 <b>Transaction ID:</b> ${senderTransaction._id}
-👤 <b>Sender:</b> ${sender.fullName}
-📧 <b>Sender Email:</b> ${sender.email}
-📱 <b>Sender Phone:</b> ${sender.phoneNumber}
-👥 <b>Recipient:</b> ${recipient.fullName} (@${recipient.username})
-📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
-💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
-📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(senderTransaction.createdAt, sender.timezone)}
+📌 <b>ID Transaksi:</b> ${senderTransaction._id}
+👤 <b>Pengirim:</b> ${sender.fullName}
+📧 <b>Email Pengirim:</b> ${sender.email}
+📱 <b>Nomor Handphone Pengirim:</b> ${sender.phoneNumber}
+👥 <b>Penerima:</b> ${recipient.fullName} (@${recipient.username})
+📱 <b>Nomor Handphone Penerima:</b> ${recipient.phoneNumber}
+💵 <b>Jumlah:</b> Rp${amount.toLocaleString('id-ID')}
+📝 <b>Catatan:</b> ${notes || 'Tidak ada catatan'}
+📅 <b>Waktu transaksi:</b> ${TimeUtils.formatForUser(senderTransaction.createdAt, sender.timezone)}
 ------------------------
-<b>Status:</b> <i>Success</i> ✅
+<b>Status:</b> <i>Berhasil</i> ✅
     `;
     
     await sendTelegramNotification(senderTelegramMessage);
 
     // Send Telegram notification for recipient
     const recipientTelegramMessage = `
-⬅️ <b>TRANSFER RECEIVED</b> ⬅️
+⬅️ <b>Penerimaan saldo</b> ⬅️
 ------------------------
-📌 <b>Transaction ID:</b> ${recipientTransaction._id}
-👤 <b>Sender:</b> ${sender.fullName} (@${sender.username})
-📱 <b>Sender Phone:</b> ${sender.phoneNumber}
-👥 <b>Recipient:</b> ${recipient.fullName}
-📧 <b>Recipient Email:</b> ${recipient.email}
-📱 <b>Recipient Phone:</b> ${recipient.phoneNumber}
-💵 <b>Amount:</b> Rp${amount.toLocaleString('id-ID')}
-📝 <b>Notes:</b> ${notes || 'No notes'}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(recipientTransaction.createdAt, recipient.timezone)}
+📌 <b>ID Transaksi:</b> ${recipientTransaction._id}
+👤 <b>Pengirim:</b> ${sender.fullName} (@${sender.username})
+📧 <b>Email Pengirim:</b> ${sender.email}
+📱 <b>Nomor Handphone Pengirim:</b> ${sender.phoneNumber}
+👥 <b>Penerima:</b> ${recipient.fullName}
+📧 <b>Email Penerima:</b> ${recipient.email}
+📱 <b>Nomor Handphone Penerima:</b> ${recipient.phoneNumber}
+💵 <b>Jumlah:</b> Rp${amount.toLocaleString('id-ID')}
+📝 <b>Catatan:</b> ${notes || 'Tidak ada catatan'}
+📅 <b>Waktu transaksi:</b> ${TimeUtils.formatForUser(recipientTransaction.createdAt, recipient.timezone)}
 ------------------------
-<b>Status:</b> <i>Success</i> ✅
+<b>Status:</b> <i>Berhasil</i> ✅
     `;
     
     await sendTelegramNotification(recipientTelegramMessage);
@@ -349,7 +350,7 @@ exports.transfer = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Transfer successful',
+      message: 'Pengiriman Saldo Berhasil Dilakukan',
       data: {
         transactionId: senderTransaction._id,
         amount,
@@ -365,7 +366,7 @@ exports.transfer = async (req, res) => {
     console.error('❌ Transfer Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Error processing transfer',
+      message: 'Gagal memproses transfer',
       error: err.message
     });
   }
@@ -407,7 +408,7 @@ exports.getHistory = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching balance history',
+      message: 'Gagal mengambil riwayat saldo',
       error: err.message
     });
   }

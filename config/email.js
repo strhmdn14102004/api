@@ -41,20 +41,20 @@ module.exports = {
   sendTransactionEmail: async (email, transaction, user) => {
     await sendEmail(email, `Transaction ${transaction.status} - ${transaction._id}`, 'transaction', { transaction, user });
   },
-  sendResetPasswordEmail: async (email, resetLink) => {
+  sendResetPasswordEmail: async (email, resetToken) => {
     // Dapatkan user data berdasarkan email
     const user = await User.findOne({ email }).select('fullName email');
     
     if (!user) {
-      throw new Error('User not found for password reset email');
+        throw new Error('User not found for password reset email');
     }
     
-    await sendEmail(email, 'Password Reset Request', 'reset-password', { 
-      resetLink,
-      user: {
-        fullName: user.fullName,
-        email: user.email
-      }
+    await sendEmail(email, 'Password Reset Request - Token', 'reset-password', { 
+        resetToken, // Kirim token saja, bukan link
+        user: {
+            fullName: user.fullName,
+            email: user.email
+        }
     });
-  }
+}
 };

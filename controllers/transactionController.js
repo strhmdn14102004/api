@@ -18,7 +18,7 @@ exports.createTransaction = async (req, res) => {
     if (!itemType || !itemId) {
       return res.status(400).json({ 
         success: false,
-        message: 'Item type and ID are required' 
+        message: 'Tipe item dan id item wajib diisi' 
       });
     }
     
@@ -32,7 +32,7 @@ exports.createTransaction = async (req, res) => {
     if (!item) {
       return res.status(404).json({ 
         success: false,
-        message: 'Item not found' 
+        message: 'Item tidak ditemukan' 
       });
     }
     
@@ -40,7 +40,7 @@ exports.createTransaction = async (req, res) => {
     if (!user) {
       return res.status(404).json({ 
         success: false,
-        message: 'User not found' 
+        message: 'User tidak ditemukan' 
       });
     }
     
@@ -48,7 +48,7 @@ exports.createTransaction = async (req, res) => {
     if ((itemType === 'imei' || itemType === 'bypass') && user.balance < item.price) {
       return res.status(400).json({ 
         success: false,
-        message: 'Insufficient balance',
+        message: 'Saldo tidak memadai',
         data: {
           required: item.price,
           current: user.balance,
@@ -92,19 +92,19 @@ exports.createTransaction = async (req, res) => {
 
     // Send Telegram notification
     const telegramMessage = `
-🛒 <b>NEW TRANSACTION</b> 🛒
+🛒 <b>Transaksi Baru</b> 🛒
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
-👤 <b>Customer:</b> ${user.fullName}
+📌 <b>ID Transaksi:</b> ${transaction._id}
+👤 <b>Kustomer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
-📱 <b>Phone Number:</b> ${user.phoneNumber}
-🛍️ <b>Product:</b> ${item.name}
-💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
-💳 <b>Current Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
-🔗 <b>Payment Link:</b> <a href="${transactionData.redirect_url}">Click here</a>
+📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
+🛍️ <b>Produk:</b> ${item.name}
+💰 <b>Harga Produk:</b> Rp${item.price.toLocaleString('id-ID')}
+💳 <b>Saldo saat ini:</b> Rp${user.balance.toLocaleString('id-ID')}
+📅 <b>Waktu Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+🔗 <b>Link Pembayaran:</b> <a href="${transactionData.redirect_url}">Klik disini</a>
 ------------------------
-<b>Status:</b> <i>Waiting for payment</i> ⏳
+<b>Status:</b> <i>Menunggu pembayaran</i> ⏳
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -114,7 +114,7 @@ exports.createTransaction = async (req, res) => {
 
     res.status(201).json({ 
       success: true,
-      message: 'Transaction created',
+      message: 'Transaksi berhasil dibuat',
       data: {
         paymentUrl: transaction.paymentUrl,
         transaction,
@@ -126,7 +126,7 @@ exports.createTransaction = async (req, res) => {
     console.error('❌ Transaction Error:', err);
     res.status(500).json({ 
       success: false,
-      message: 'Failed to create transaction', 
+      message: 'Gagal membuat transaksi', 
       error: err.message 
     });
   }
@@ -140,7 +140,7 @@ exports.directPurchase = async (req, res) => {
     if (!itemType || !itemId) {
       return res.status(400).json({ 
         success: false,
-        message: 'Item type and ID are required' 
+        message: 'Tipe item dan id item wajib diisi' 
       });
     }
     
@@ -152,14 +152,14 @@ exports.directPurchase = async (req, res) => {
     } else {
       return res.status(400).json({ 
         success: false,
-        message: 'Invalid item type for direct purchase' 
+        message: 'Tipe item tidak valid' 
       });
     }
     
     if (!item) {
       return res.status(404).json({ 
         success: false,
-        message: 'Item not found' 
+        message: 'Item tidak ditemukan' 
       });
     }
     
@@ -167,7 +167,7 @@ exports.directPurchase = async (req, res) => {
     if (!user) {
       return res.status(404).json({ 
         success: false,
-        message: 'User not found' 
+        message: 'Pengguna tidak ditemukan' 
       });
     }
     
@@ -175,7 +175,7 @@ exports.directPurchase = async (req, res) => {
     if (user.balance < item.price) {
       return res.status(400).json({ 
         success: false,
-        message: 'Insufficient balance',
+        message: 'Saldo tidak memadai',
         data: {
           required: item.price,
           current: user.balance,
@@ -208,25 +208,25 @@ exports.directPurchase = async (req, res) => {
       previousBalance: user.balance + item.price,
       newBalance: user.balance,
       type: 'purchase',
-      description: `Direct purchase of ${itemType} - ${item.name}`
+      description: `Pembelian langsung ${itemType} - ${item.name}`
     });
     
     await balanceHistory.save();
 
     // Send Telegram notification
     const telegramMessage = `
-🛒 <b>DIRECT PURCHASE</b> 🛒
+🛒 <b>Pembelian Langsung</b> 🛒
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
-👤 <b>Customer:</b> ${user.fullName}
+📌 <b>ID Transaksi:</b> ${transaction._id}
+👤 <b>Kustomer:</b> ${user.fullName}
 📧 <b>Email:</b> ${user.email}
-📱 <b>Phone Number:</b> ${user.phoneNumber}
-🛍️ <b>Product:</b> ${item.name}
-💰 <b>Price:</b> Rp${item.price.toLocaleString('id-ID')}
-💳 <b>New Balance:</b> Rp${user.balance.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+📱 <b>Nomor Handphone:</b> ${user.phoneNumber}
+🛍️ <b>Produk:</b> ${item.name}
+💰 <b>Harga Produk:</b> Rp${item.price.toLocaleString('id-ID')}
+💳 <b>Saldo terbaru:</b> Rp${user.balance.toLocaleString('id-ID')}
+📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
-<b>Status:</b> <i>Success</i> ✅
+<b>Status:</b> <i>Suksess</i> ✅
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -236,7 +236,7 @@ exports.directPurchase = async (req, res) => {
 
     res.status(201).json({ 
       success: true,
-      message: 'Direct purchase successful',
+      message: 'Transaksi secara langsung berhasil dilakukan',
       data: {
         transaction,
         newBalance: user.balance,
@@ -247,7 +247,7 @@ exports.directPurchase = async (req, res) => {
     console.error('❌ Direct Purchase Error:', err);
     res.status(500).json({ 
       success: false,
-      message: 'Failed to process direct purchase', 
+      message: 'Gagal melakukan pembelian langsung', 
       error: err.message 
     });
   }
@@ -261,14 +261,14 @@ exports.midtransWebhook = async (req, res) => {
     if (!order_id || !transaction_status) {
       return res.status(400).json({
         success: false,
-        message: 'Incomplete payload'
+        message: 'Order ID dan status transaksi wajib diisi'
       });
     }
     
     if (!mongoose.Types.ObjectId.isValid(order_id)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid transaction ID format'
+        message: 'Format ID transaksi tidak valid'
       });
     }
     
@@ -278,7 +278,7 @@ exports.midtransWebhook = async (req, res) => {
     if (!transaction) {
       return res.status(404).json({
         success: false,
-        message: 'Transaction not found'
+        message: 'Transaksi tidak ditemukan'
       });
     }
     
@@ -312,7 +312,7 @@ exports.midtransWebhook = async (req, res) => {
             previousBalance: user.balance - transaction.amount,
             newBalance: user.balance,
             type: 'topup',
-            description: 'Top up balance'
+            description: 'Top up saldo'
           });
           await balanceHistory.save();
           
@@ -330,7 +330,7 @@ exports.midtransWebhook = async (req, res) => {
               previousBalance: user.balance + transaction.amount,
               newBalance: user.balance,
               type: 'purchase',
-              description: `Purchase ${transaction.itemType} - ${transaction.itemName}`
+              description: `Pembelian ${transaction.itemType} - ${transaction.itemName}`
             });
             await balanceHistory.save();
           } else {
@@ -339,7 +339,7 @@ exports.midtransWebhook = async (req, res) => {
             await transaction.save();
             newStatus = 'failed';
             
-            console.log(`❌ Insufficient balance for purchase: User ${user._id}, Needed: ${transaction.amount}, Balance: ${user.balance}`);
+            console.log(`❌ Saldo tidak cukup untuk membeli : User ${user._id}, Dibutukan: ${transaction.amount}, Saldo: ${user.balance}`);
           }
         }
       }
@@ -353,7 +353,7 @@ exports.midtransWebhook = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Webhook processed',
+      message: 'Webhook sedang diproses',
       data: {
         transactionId: transaction._id,
         status: transaction.status
@@ -363,7 +363,7 @@ exports.midtransWebhook = async (req, res) => {
     console.error('❌ Webhook Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Failed to process webhook',
+      message: 'Gagal memproses webhook',
       error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
@@ -403,17 +403,17 @@ exports.sendTransactionNotifications = async (transaction) => {
     
     // Telegram notification
     const telegramMessage = `
-📢 <b>TRANSACTION UPDATE</b> 📢
+📢 <b>Update Transaksi</b> 📢
 ------------------------
-📌 <b>Transaction ID:</b> ${transaction._id}
-👤 <b>Customer:</b> ${user.fullName || 'Unknown'}
+📌 <b>ID Transaksi:</b> ${transaction._id}
+👤 <b>Kustomer:</b> ${user.fullName || 'Unknown'}
 📧 <b>Email:</b> ${user.email || 'No email'}
-📱 <b>Phone:</b> ${user.phoneNumber || 'No phone'}
-🛍️ <b>Product:</b> ${transaction.itemName || 'Top Up'}
-💰 <b>Amount:</b> Rp${transaction.amount.toLocaleString('id-ID')}
-📅 <b>Time:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
+📱 <b>Nomor Handphone:</b> ${user.phoneNumber || 'No phone'}
+🛍️ <b>Produk:</b> ${transaction.itemName || 'Top Up'}
+💰 <b>Harga:</b> Rp${transaction.amount.toLocaleString('id-ID')}
+📅 <b>Tanggal Transaksi:</b> ${TimeUtils.formatForUser(transaction.createdAt, user.timezone)}
 ------------------------
-<b>New Status:</b> <i>${statusText}</i> ${statusEmoji}
+<b>Status terbaru:</b> <i>${statusText}</i> ${statusEmoji}
     `;
     
     await sendTelegramNotification(telegramMessage);
@@ -432,11 +432,11 @@ exports.sendTransactionNotifications = async (transaction) => {
       let notificationBody = '';
       
       if (transaction.status === 'success') {
-        notificationTitle = 'Payment Successful';
-        notificationBody = `Your ${transaction.itemName || 'top up'} transaction was successful`;
+        notificationTitle = 'Pembayaran Berhasil';
+        notificationBody = `Your ${transaction.itemName || 'top up'} transaksi berhasil dilakukan`;
       } else if (transaction.status === 'failed') {
-        notificationTitle = 'Payment Failed';
-        notificationBody = `Your ${transaction.itemName || 'top up'} transaction failed`;
+        notificationTitle = 'Pembayaran Gagal';
+        notificationBody = `Your ${transaction.itemName || 'top up'} Transaksi gagal`;
       }
       
       if (notificationTitle && notificationBody) {
@@ -488,7 +488,7 @@ exports.getNotifications = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'Failed to get notifications',
+      message: 'Gagal mendapatkan data notifikasi',
       error: err.message
     });
   }
@@ -500,7 +500,7 @@ exports.updateTransactionStatus = async (req, res) => {
     const { transactionId, status } = req.body;
     if (!transactionId || !status) {
       return res.status(400).json({ 
-        message: 'Transaction ID dan status wajib diisi' 
+        message: 'ID Transaksi dan status wajib diisi' 
       });
     }
     
@@ -543,7 +543,6 @@ exports.getTransactionHistory = async (req, res) => {
   }
 };
 
-// Get transaction details
 // Get transaction details
 exports.getTransactionDetails = async (req, res) => {
   try {
@@ -683,7 +682,7 @@ exports.approveTransaction = async (req, res) => {
     if (!adminNotes) {
       return res.status(400).json({
         success: false,
-        message: 'Admin notes are required'
+        message: 'Catatan admin wajib diisi'
       });
     }
 
@@ -691,7 +690,7 @@ exports.approveTransaction = async (req, res) => {
     if (!transaction) {
       return res.status(404).json({
         success: false,
-        message: 'Transaction not found'
+        message: 'Transaksi tidak ditemukan'
       });
     }
 
@@ -700,7 +699,7 @@ exports.approveTransaction = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
@@ -728,7 +727,7 @@ exports.approveTransaction = async (req, res) => {
         previousBalance: user.balance - transaction.amount,
         newBalance: user.balance,
         type: 'topup',
-        description: 'Top up approved by admin'
+        description: 'Top up disetujui oleh admin'
       });
       await balanceHistory.save();
     }
@@ -738,7 +737,7 @@ exports.approveTransaction = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Transaction approved successfully',
+      message: 'Transaksi berhasil disetujui',
       data: transaction
     });
 
@@ -746,7 +745,7 @@ exports.approveTransaction = async (req, res) => {
     console.error('❌ Approve Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Failed to approve transaction',
+      message: 'Gagal menyetujui transaksi',
       error: err.message
     });
   }

@@ -17,7 +17,7 @@ exports.register = async (req, res) => {
     if (!username || !password || !fullName || !email || !address || !phoneNumber) {
       return res.status(400).json({ 
         success: false,
-        message: 'All fields are required' 
+        message: 'Semua field harus diisi' 
       });
     }
 
@@ -29,7 +29,7 @@ exports.register = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Username or email already exists'
+        message: 'Username atau email sudah terdaftar'
       });
     }
 
@@ -58,7 +58,7 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'User registered. Please verify your email with the OTP sent.',
+      message: 'Registrasi berhasil, silakan cek email Anda untuk OTP',
       data: {
         userId: newUser._id,
         timezone: userTimezone
@@ -68,12 +68,63 @@ exports.register = async (req, res) => {
     console.error('❌ Registration Error:', err);
     res.status(500).json({
       success: false,
-      message: 'Registration failed',
+      message: 'Gagal melakukan registrasi',
       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
+//verify reset password token
+exports.verifyResetToken = async (req, res) => {
+    try {
+        const { email, token } = req.body;
+        
+        if (!email || !token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email dan token harus diisi'
+            });
+        }
 
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pengguna tidak ditemukan'
+            });
+        }
+
+        if (!user.resetToken || user.resetToken.token !== token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token tidak valid'
+            });
+        }
+
+        if (user.resetToken.expiresAt < TimeUtils.getUTCTime()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token telah kedaluwarsa'
+            });
+        }
+
+        // Verify the token
+        jwt.verify(token, secretKey + user.password);
+
+        res.status(200).json({
+            success: true,
+            message: 'Token valid',
+            data: {
+                userId: user._id
+            }
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            message: 'Token tidak valid',
+            error: err.message
+        });
+    }
+};
 // Verify OTP
 exports.verifyOtp = async (req, res) => {
   try {
@@ -82,7 +133,7 @@ exports.verifyOtp = async (req, res) => {
     if (!email || !otp) {
       return res.status(400).json({
         success: false,
-        message: 'Email and OTP are required'
+        message: 'Email dan OTP harus diisi'
       });
     }
 
@@ -90,28 +141,28 @@ exports.verifyOtp = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
     if (user.emailVerified) {
       return res.status(400).json({
         success: false,
-        message: 'Email already verified'
+        message: 'Email sudah diverifikasi'
       });
     }
 
     if (!user.otp || user.otp.code !== otp) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid OTP'
+        message: 'OTP tidak valid'
       });
     }
 
     if (user.otp.expiresAt < TimeUtils.getUTCTime()) {
       return res.status(400).json({
         success: false,
-        message: 'OTP has expired'
+        message: 'OTP telah kedaluwarsa'
       });
     }
 
@@ -121,12 +172,12 @@ exports.verifyOtp = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully'
+      message: 'Email berhasil diverifikasi',
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'OTP verification failed',
+      message: 'Gagal memverifikasi OTP',
       error: err.message
     });
   }
@@ -140,7 +191,7 @@ exports.resendOtp = async (req, res) => {
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required'
+        message: 'Email diperlukan'
       });
     }
 
@@ -148,14 +199,14 @@ exports.resendOtp = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
     if (user.emailVerified) {
       return res.status(400).json({
         success: false,
-        message: 'Email already verified'
+        message: 'Email sudah diverifikasi, tidak perlu mengirim ulang OTP'
       });
     }
 
@@ -172,12 +223,12 @@ exports.resendOtp = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'New OTP sent to your email'
+      message: 'OTP baru telah dikirim ke email Anda',
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'Failed to resend OTP',
+      message: 'Gagal mengirim ulang OTP',
       error: err.message
     });
   }
@@ -191,7 +242,7 @@ exports.login = async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Username and password are required'
+        message: 'Username dan password harus diisi'
       });
     }
 
@@ -199,14 +250,14 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Username atau password salah'
       });
     }
 
     if (!user.emailVerified) {
       return res.status(403).json({
         success: false,
-        message: 'Email not verified. Please verify your email first.'
+        message: 'Email Anda belum diverifikasi. Silakan verifikasi email Anda terlebih dahulu.'
       });
     }
 
@@ -214,7 +265,7 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Username atau password salah'
       });
     }
 
@@ -237,7 +288,7 @@ exports.login = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Login successful',
+      message: 'Login berhasil',
       token,
       user: {
         id: user._id,
@@ -254,111 +305,118 @@ exports.login = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: 'Login failed',
+      message: 'Gagal melakukan login',
       error: err.message
     });
   }
 };
 
 // Forgot password
+// Forgot password
 exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email diperlukan'
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            // Untuk keamanan, tetap return success meski email tidak ditemukan
+            return res.status(200).json({
+                success: true,
+                message: 'Jika email ini terdaftar, token reset akan dikirim'
+            });
+        }
+
+        const resetToken = jwt.sign(
+            { id: user._id },
+            secretKey + user.password,
+            { expiresIn: '15m' }
+        );
+
+        // Simpan token ke database
+        user.resetToken = {
+            token: resetToken,
+            expiresAt: TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 15)
+        };
+
+        await user.save();
+        
+        // Kirim email dengan token saja (bukan link)
+        await sendResetPasswordEmail(email, resetToken);
+
+        res.status(200).json({
+            success: true,
+            message: 'Token reset password telah dikirim ke email Anda',
+            data: {
+                userId: user._id // Kirim juga user ID untuk memudahkan frontend
+            }
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Gagal mengirim token reset password',
+            error: err.message
+        });
     }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'If this email exists, a reset link will be sent'
-      });
-    }
-
-    const resetToken = jwt.sign(
-      { id: user._id },
-      secretKey + user.password,
-      { expiresIn: '15m' }
-    );
-
-    const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}&id=${user._id}`;
-
-    user.resetToken = {
-      token: resetToken,
-      expiresAt: TimeUtils.addMinutesUTC(TimeUtils.getUTCTime(), 15) // 15 minutes
-    };
-
-    await user.save();
-    await sendResetPasswordEmail(email, resetLink);
-
-    res.status(200).json({
-      success: true,
-      message: 'Password reset link sent to your email'
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to process password reset',
-      error: err.message
-    });
-  }
 };
 
 // Reset password
+// Reset password
 exports.resetPassword = async (req, res) => {
-  try {
-    const { token, userId, newPassword } = req.body;
-    
-    if (!token || !userId || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token, user ID and new password are required'
-      });
+    try {
+        const { email, token, newPassword } = req.body;
+        
+        if (!email || !token || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email, token, dan password baru harus diisi'
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pengguna tidak ditemukan'
+            });
+        }
+
+        if (!user.resetToken || user.resetToken.token !== token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token tidak valid'
+            });
+        }
+
+        if (user.resetToken.expiresAt < TimeUtils.getUTCTime()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token telah kedaluwarsa'
+            });
+        }
+
+        // Verify the token
+        jwt.verify(token, secretKey + user.password);
+
+        user.password = newPassword;
+        user.resetToken = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password berhasil direset'
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            message: 'Gagal mereset password',
+            error: err.message
+        });
     }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    if (!user.resetToken || user.resetToken.token !== token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
-    }
-
-    if (user.resetToken.expiresAt < TimeUtils.getUTCTime()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token has expired'
-      });
-    }
-
-    // Verify the token
-    jwt.verify(token, secretKey + user.password);
-
-    user.password = newPassword;
-    user.resetToken = undefined;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Password reset successful'
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: 'Password reset failed',
-      error: err.message
-    });
-  }
 };
